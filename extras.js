@@ -13,7 +13,7 @@ const authLabels={
  en:{connect:'Sign in with Google / retry',authIntro:'Continue with your Google account',rememberHint:'Stay signed in for 30 days on this device. Sign out after using a shared device.',accountConnection:'Account and data',logoutAll:'Sign out all devices',restoring:'Restoring connection…',reconnectHint:'Your session expired. Please sign in again.',offlineConsent:'Offline consent is required. Remove this app from your Google connections and sign in again.',discardLogout:'Discard unsaved changes and sign out?',confirmLogoutAll:'Sign out all devices connected to this app?',storageUnavailable:'Browser storage is unavailable. Sign-in will be required next time.'},
  th:{connect:'เข้าสู่ระบบ Google / ลองอีกครั้ง',authIntro:'เริ่มต้นด้วยบัญชี Google',rememberHint:'คงการเข้าสู่ระบบ 30 วันบนอุปกรณ์นี้ โปรดออกจากระบบเมื่อใช้เครื่องร่วมกัน',accountConnection:'บัญชีและข้อมูล',logoutAll:'ออกจากระบบทุกอุปกรณ์',restoring:'กำลังกู้คืนการเชื่อมต่อ…',reconnectHint:'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง',offlineConsent:'ต้องอนุญาตการใช้งานต่อเนื่อง ยกเลิกการเชื่อมต่อแอปในบัญชี Google แล้วเข้าสู่ระบบใหม่',discardLogout:'ละทิ้งการเปลี่ยนแปลงที่ยังไม่บันทึกและออกจากระบบหรือไม่?',confirmLogoutAll:'ออกจากระบบทุกอุปกรณ์ที่เชื่อมต่อแอปนี้หรือไม่?',storageUnavailable:'ไม่สามารถบันทึกในเบราว์เซอร์ได้ ครั้งหน้าต้องเข้าสู่ระบบใหม่'}
 };
-for(const lang of Object.keys(authLabels))Object.assign(I[lang],authLabels[lang]);
+for(const lang of Object.keys(authLabels))Object.assign(i18n[lang],authLabels[lang]);
 let pendingReceipt=null,scanBlob=null,connecting=false;
 function newId(){return Date.now()*1000+crypto.getRandomValues(new Uint16Array(1))[0]%1000;}
 function renderBudget(){
