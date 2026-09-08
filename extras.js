@@ -8,6 +8,12 @@ Object.assign(extraLabels.ja,{clearWarning:'必要なら先にJSONバックア�
 Object.assign(extraLabels.en,{clearWarning:'Export a JSON backup first if needed. History and images remain in Drive.',driveLauncher:'Google Drive ledger',openLauncher:'Open ledger (Launch tab opens app)',recreateLauncher:'Refresh link',launcherCreated:'Link refreshed',confirmClear:'Reset current transactions, accounts, budgets and settings? History and images remain in Drive. Delete them from Drive for permanent removal.'});
 Object.assign(extraLabels.th,{clearWarning:'สำรองข้อมูล JSON ก่อนหากจำเป็น ประวัติและรูปภาพยังอยู่ใน Drive',driveLauncher:'สมุดบัญชี Google Drive',openLauncher:'เปิดสมุดบัญชี (แท็บ Launch)',recreateLauncher:'อัปเดตลิงก์',launcherCreated:'อัปเดตลิงก์แล้ว',confirmClear:'ล้างรายการ บัญชี งบประมาณ และการตั้งค่าปัจจุบันหรือไม่? ประวัติและรูปภาพยังอยู่ใน Drive หากต้องการลบถาวรให้ลบใน Drive'});
 for(const lang of Object.keys(extraLabels))Object.assign(I[lang],extraLabels[lang]);
+const authLabels={
+ ja:{connect:'Googleでログイン／再試行',authIntro:'Googleアカウントで始める',rememberHint:'この端末で30日間ログインを維持します。共有端末では使用後にログアウトしてください。',accountConnection:'アカウント・データ管理',logoutAll:'全端末ログアウト',restoring:'接続を確認しています…',reconnectHint:'ログインの有効期限が切れました。もう一度接続してください。',offlineConsent:'継続利用の許可が必要です。Googleアカウントの連携を解除し、再度ログインしてください。',discardLogout:'未保存の変更を破棄してログアウトしますか？',confirmLogoutAll:'このアプリに接続した全端末をログアウトしますか？',storageUnavailable:'端末の保存機能が使えないため、次回はログインが必要です。'},
+ en:{connect:'Sign in with Google / retry',authIntro:'Continue with your Google account',rememberHint:'Stay signed in for 30 days on this device. Sign out after using a shared device.',accountConnection:'Account and data',logoutAll:'Sign out all devices',restoring:'Restoring connection…',reconnectHint:'Your session expired. Please sign in again.',offlineConsent:'Offline consent is required. Remove this app from your Google connections and sign in again.',discardLogout:'Discard unsaved changes and sign out?',confirmLogoutAll:'Sign out all devices connected to this app?',storageUnavailable:'Browser storage is unavailable. Sign-in will be required next time.'},
+ th:{connect:'เข้าสู่ระบบ Google / ลองอีกครั้ง',authIntro:'เริ่มต้นด้วยบัญชี Google',rememberHint:'คงการเข้าสู่ระบบ 30 วันบนอุปกรณ์นี้ โปรดออกจากระบบเมื่อใช้เครื่องร่วมกัน',accountConnection:'บัญชีและข้อมูล',logoutAll:'ออกจากระบบทุกอุปกรณ์',restoring:'กำลังกู้คืนการเชื่อมต่อ…',reconnectHint:'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง',offlineConsent:'ต้องอนุญาตการใช้งานต่อเนื่อง ยกเลิกการเชื่อมต่อแอปในบัญชี Google แล้วเข้าสู่ระบบใหม่',discardLogout:'ละทิ้งการเปลี่ยนแปลงที่ยังไม่บันทึกและออกจากระบบหรือไม่?',confirmLogoutAll:'ออกจากระบบทุกอุปกรณ์ที่เชื่อมต่อแอปนี้หรือไม่?',storageUnavailable:'ไม่สามารถบันทึกในเบราว์เซอร์ได้ ครั้งหน้าต้องเข้าสู่ระบบใหม่'}
+};
+for(const lang of Object.keys(authLabels))Object.assign(I[lang],authLabels[lang]);
 let pendingReceipt=null,scanBlob=null,connecting=false;
 function newId(){return Date.now()*1000+crypto.getRandomValues(new Uint16Array(1))[0]%1000;}
 function renderBudget(){
@@ -22,19 +28,41 @@ $('budgetOpen').onclick=()=>{renderBudget();$('budgetDialog').showModal();};
 $('budgetSave').onclick=()=>{const detail=$('budgetDetail').value.trim(),amount=Number($('budgetAmount').value);if(!detail||!Number.isFinite(amount)||amount<0)return toast(tr('inputError'));const id=JSON.stringify([selected(),detail]);const b={id,month:selected(),detail,amount,currency:D.settings.baseCurrency};D.budgets=(D.budgets||[]).filter(x=>x.id!==id);D.budgets.push(b);sync();};
 $('budgetRows').onclick=e=>{const edit=e.target.closest('[data-budget-edit]'),del=e.target.closest('[data-budget-delete]');if(edit){$('budgetDetail').value=edit.dataset.budgetEdit;$('budgetAmount').value=D.budgets.find(b=>b.month===selected()&&b.detail===edit.dataset.budgetEdit)?.amount||0;}if(del&&confirm(tr('confirmDelete'))){D.budgets=D.budgets.filter(b=>b.id!==del.dataset.budgetDelete);sync();}};
 function lock(value){document.querySelector('main').inert=value;$('settingsBtn').disabled=value;for(const id of ['pull','retry','backup','scan'])$(id).disabled=value;}
+async function enter() {
+ busy(true);$('connect').disabled=true;$('authMessage').textContent=tr('restoring');
+ try{
+  const r=await Auth.token();
+  if(U?.sub&&U.sub!==r.user.sub)throw Error('別のアカウントです。ログアウトしてから接続してください。');
+  const previous=D,data=await Cloud.connect(r,dirty);D=dirty?previous:data;
+  U={sub:r.user.sub,displayName:r.user.name,email:r.user.email};L={ready:true,driveFileUrl:Cloud.url};
+  lock(false);document.querySelector('main').hidden=false;$('authGate').hidden=true;$('syncBar').hidden=false;
+  render();$('accountIdentity').textContent=U.email;$('cloudStatus').textContent=tr('connected');$('retry').hidden=!dirty;
+ }catch(e){$('authGate').hidden=false;$('authMessage').textContent=authError(e);fail(e);}finally{busy(false);$('connect').disabled=false;}
+}
+function authError(e){
+ if(e.message==='REAUTH_REQUIRED')return tr('reconnectHint');
+ if(e.message==='OFFLINE_CONSENT_REQUIRED')return tr('offlineConsent');
+ return e.message;
+}
 $('connect').onclick=()=>{
+ if(Auth.saved)return enter();
  if(connecting)return;
  if(!window.google?.accounts?.oauth2)return toast('Google Identity Servicesを読み込めません。ネット接続を確認してください。');
  if(!CASHFLOW_CONFIG.clientId||CASHFLOW_CONFIG.clientId.startsWith('YOUR_'))return toast('config.js に OAuth クライアントIDを設定してください。');
- connecting=true;
- google.accounts.oauth2.initTokenClient({client_id:CASHFLOW_CONFIG.clientId,scope:Cloud.scope,prompt:Cloud.ready?'':'select_account',error_callback:e=>{connecting=false;fail(e.type);},callback:async r=>{
- connecting=false;if(r.error)return fail(r.error);if(!google.accounts.oauth2.hasGrantedAllScopes(r,Cloud.scope))return fail('Google Driveへのアクセスを許可してください。');
- busy(true);try{const old=D;const data=await Cloud.connect(r,dirty);D=dirty?old:data;U={displayName:'Google',email:''};L={ready:true,driveFileUrl:Cloud.url};lock(false);render();$('cloudStatus').textContent=tr('connected');if(dirty)toast('未保存の変更があります。「保存を再試行」を押してください。');}catch(e){fail(e);}finally{busy(false);}
- }}).requestAccessToken();
+ connecting=true;$('connect').disabled=true;
+ google.accounts.oauth2.initCodeClient({client_id:CASHFLOW_CONFIG.clientId,scope:Cloud.scope+' openid email profile',ux_mode:'popup',select_account:true,
+ error_callback:e=>{connecting=false;$('connect').disabled=false;$('authMessage').textContent=e.type;},
+ callback:async r=>{
+  connecting=false;$('connect').disabled=false;if(r.error){$('authMessage').textContent=r.error;return;}
+  busy(true);try{await Auth.login(r.code);await enter();}catch(e){$('authMessage').textContent=authError(e);fail(e);}finally{busy(false);}
+ }}).requestCode();
 };
-async function pull(){if(!Cloud.ready||dirty||document.querySelector('dialog[open]')||$('busy').style.display==='grid')return;busy(true);try{D=await Cloud.refresh();render();$('cloudStatus').textContent=tr('connected')+' '+new Date().toLocaleTimeString();}catch(e){$('cloudStatus').textContent=e.message;}finally{busy(false);}}
+async function pull(){if(!Cloud.ready||dirty||document.querySelector('dialog[open]')||$('busy').style.display==='grid')return;busy(true);try{D=await Cloud.refresh();render();$('cloudStatus').textContent=tr('connected')+' '+new Date().toLocaleTimeString();}catch(e){$('cloudStatus').textContent=authError(e);}finally{busy(false);}}
 $('pull').onclick=pull;$('retry').onclick=()=>sync();
-$('logout').onclick=()=>{if(!dirty||confirm('未保存の変更を破棄してログアウトしますか？'))location.reload();};
+async function leave(all){if(dirty&&!confirm(tr('discardLogout')))return;if(all&&!confirm(tr('confirmLogoutAll')))return;busy(true);try{await Auth.logout(all);dirty=false;location.reload();}catch(e){if(e.status===401){dirty=false;location.reload();return;}fail(e);}finally{busy(false);}}
+$('logout').onclick=()=>leave(false);$('logoutAll').onclick=()=>leave(true);
+window.addEventListener('auth-required',()=>{$('authGate').hidden=false;$('authMessage').textContent=tr('reconnectHint');$('cloudStatus').textContent=tr('offline');});
+window.addEventListener('auth-storage-unavailable',()=>toast(tr('storageUnavailable')));
 $('backup').onclick=()=>{const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cashflow-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 window.addEventListener('focus',pull);setInterval(pull,60000);
@@ -49,4 +77,4 @@ $('ocrUse').onclick=async()=>{
  const totalLine=text.split('\n').filter(l=>/合計|総額|grand total|amount due|ยอดรวม|total/i.test(l)&&!/subtotal|小計/i.test(l)).pop();if(totalLine){const n=totalLine.match(/\d[\d,]*(?:\.\d{1,2})?/g);if(n)$('txAmount').value=n.at(-1).replaceAll(',','');}
  const cur=/฿|THB/.test(text)?'THB':/Rp\b|IDR/.test(text)?'IDR':/USD|\$/.test(text)?'USD':/JPY|円|¥|￥/.test(text)?'JPY':D.settings.baseCurrency;$('txCurrency').value=cur;fetchRate();}catch(e){fail(e);}finally{busy(false);}
 };
-init();lock(true);$('cloudStatus').textContent=tr('offline');
+init();lock(true);$('cloudStatus').textContent=tr('offline');if(Auth.saved)enter();
