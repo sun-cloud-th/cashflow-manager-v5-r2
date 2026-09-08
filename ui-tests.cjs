@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const source=fs.readFileSync(__dirname+'/extras.js','utf8');
+const enterSource=source.slice(source.indexOf('async function enter()'),source.indexOf("$('connect').onclick="));
+function setup(fail=false,dirty=false){const el={},main={hidden:true};const c=vm.createContext({D:{draft:true},U:{},L:{},dirty,$:id=>el[id]||(el[id]={hidden:false,disabled:false}),Auth:{token:async()=>({user:{sub:'u1',name:'User',email:'a@example.com'}})},Cloud:{connect:async()=>{if(fail)throw Error('NETWORK');return {loaded:true};},url:'https://docs.google.com'},document:{querySelector:()=>main},busy(){},lock(){},render(){},tr:x=>x,fail(){}});vm.runInContext(enterSource,c);return {c,el,main};}
+test('successful restore hides sign-in panel and shows compact status',async()=>{const {c,el,main}=setup();await c.enter();assert.equal(el.authGate.hidden,true);assert.equal(el.syncBar.hidden,false);assert.equal(main.hidden,false);assert.equal(el.retry.hidden,true);assert.equal(el.accountIdentity.textContent,'a@example.com');});
+test('unsaved changes survive reconnect and retry appears',async()=>{const {c,el}=setup(false,true);await c.enter();assert.equal(c.D.draft,true);assert.equal(el.retry.hidden,false);});
+test('restore failure preserves sign-in retry and hides empty ledger',async()=>{const {c,el,main}=setup(true);await c.enter();assert.equal(el.authGate.hidden,false);assert.equal(main.hidden,true);assert.equal(el.connect.disabled,false);});
