@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cashflow Manager Ver.5-R2</title>
+  <style>
+    [hidden] { display:none !important; }
+    :root {
+      --bg:#f3f6f8; --panel:#fff; --text:#182632; --muted:#657582; --line:#dbe3e8;
+      --brand:#176da1; --income:#16885d; --expense:#d95255; --soft:#edf2f5;
+      color-scheme:light;
+    }
+    .dark {
+      --bg:#0d161d; --panel:#15212a; --text:#eef5f8; --muted:#9db0bc;
+      --line:#2e3d48; --soft:#202f39; color-scheme:dark;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 "Yu Gothic UI",Meiryo,Arial,sans-serif; }
+    button,input,select { font:inherit; color:inherit; }
+    button,select,input { min-height:40px; }
+    .wrap { width:min(1480px,calc(100% - 28px)); margin:auto; }
+    .top { position:sticky; top:0; z-index:20; background:color-mix(in srgb,var(--panel) 94%,transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
+    .topin { min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    .actions { flex-wrap:wrap; }
+    .brand,.tools,.row,.actions { display:flex; align-items:center; gap:9px; }
+    .icon { width:44px; height:44px; border-radius:12px; background:var(--brand); color:#fff; display:grid; place-items:center; font-weight:800; font-size:20px; }
+    .brand h1 { margin:0; font-size:19px; }
+    .brand p { margin:0; color:var(--muted); font-size:12px; }
+    .version { display:inline-block; margin-left:7px; padding:2px 7px; border-radius:99px; background:var(--soft); color:var(--muted); font-size:11px; vertical-align:2px; }
+    .user { color:var(--muted); font-size:12px; text-align:right; }
+    .btn,.ctl { border:1px solid var(--line); background:var(--panel); border-radius:9px; padding:8px 11px; }
+    .btn { cursor:pointer; font-weight:650; }
+    .btn:hover { border-color:var(--brand); }
+    .btn.blue { background:var(--brand); border-color:var(--brand); color:#fff; }
+    .btn.green { background:var(--income); border-color:var(--income); color:#fff; }
+    .btn.red { background:var(--expense); border-color:var(--expense); color:#fff; }
+    .btn.ghost { background:transparent; border-color:transparent; }
+    .btn:disabled { opacity:.55; cursor:wait; }
+    .base-switch { display:grid; grid-template-columns:auto 88px; align-items:center; gap:7px; }
+    .base-switch label { color:var(--muted); font-size:12px; }
+    main { padding:22px 0 50px; }
+    .controlbar { display:flex; justify-content:space-between; align-items:end; gap:16px; margin-bottom:16px; }
+    .period { display:flex; gap:5px; flex-wrap:wrap; }
+    .period button { border:0; background:var(--soft); color:var(--muted); padding:7px 11px; border-radius:8px; cursor:pointer; }
+    .period button.on { background:var(--brand); color:#fff; }
+    .sub { color:var(--muted); font-size:13px; margin:5px 0 0; }
+    .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:0 7px 24px rgba(20,44,60,.06); }
+    .metric { padding:17px; border-top:4px solid #7c8993; }
+    .metric.click { cursor:pointer; }
+    .metric.inc { border-color:var(--income); }
+    .metric.exp { border-color:var(--expense); }
+    .metric.close { border-color:var(--brand); }
+    .metric span { color:var(--muted); font-size:13px; }
+    .metric strong { display:block; margin-top:7px; font:700 21px Consolas,monospace; }
+    .metric small { color:var(--muted); }
+    .layout { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr); gap:13px; margin-top:13px; }
+    .head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:17px 18px 0; }
+    .head h2 { margin:0; font-size:17px; }
+    .body { padding:16px 18px 18px; }
+    .chart-stack { display:grid; gap:15px; }
+    .chart-panel { border:1px solid var(--line); border-radius:12px; padding:12px 12px 8px; overflow:hidden; }
+    .chart-panel[hidden] { display:none !important; }
+    .chart-title { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:4px; }
+    .chart-title strong { font-size:14px; }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; color:var(--muted); font-size:12px; }
+    .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; }
+    .chart { height:310px; display:flex; align-items:end; gap:8px; overflow-x:auto; border-bottom:1px solid var(--line); padding:10px 6px 0; }
+    .monthcol { min-width:86px; flex:1; height:100%; display:flex; flex-direction:column; justify-content:end; align-items:center; }
+    .bars { height:238px; display:flex; align-items:end; gap:6px; }
+    .bar { width:30px; min-height:3px; border-radius:7px 7px 2px 2px; cursor:pointer; transition:filter .15s,transform .15s; }
+    .bar:hover { filter:brightness(1.08); transform:translateY(-2px); }
+    .bar.inc { background:var(--income); }
+    .bar.exp { background:var(--expense); }
+    .bar.bal { width:46px; background:var(--brand); cursor:default; }
+    .chart.single-month .monthcol { min-width:100%; }
+    .chart.single-month .bars { width:min(80%,620px); justify-content:center; gap:clamp(18px,4vw,52px); }
+    .chart.single-month .bar { width:clamp(100px,20vw,210px); }
+    .xlab { font-size:11px; color:var(--muted); padding:7px 0; white-space:nowrap; }
+    .accounts { display:grid; gap:8px; }
+    .account { display:flex; justify-content:space-between; gap:12px; align-items:center; border:1px solid var(--line); border-radius:10px; padding:11px; }
+    .account strong,.account small { display:block; }
+    .account small { color:var(--muted); }
+    .money { font:700 13px Consolas,monospace; white-space:nowrap; }
+    .ledger { margin-top:13px; }
+    .tabs { display:flex; gap:4px; flex-wrap:wrap; }
+    .tab { border:0; background:var(--soft); color:var(--muted); border-radius:8px; padding:7px 10px; cursor:pointer; }
+    .tab.on { background:var(--brand); color:#fff; }
+    .tablewrap { overflow:auto; border:1px solid var(--line); border-radius:10px; }
+    table { width:100%; border-collapse:collapse; min-width:950px; }
+    th,td { padding:11px; border-bottom:1px solid var(--line); vertical-align:top; text-align:left; }
+    th { background:var(--soft); color:var(--muted); font-size:12px; }
+    .right { text-align:right; }
+    .tag { display:inline-block; border-radius:99px; padding:3px 8px; font-size:11px; font-weight:700; }
+    .tag.income { color:var(--income); background:color-mix(in srgb,var(--income) 14%,transparent); }
+    .tag.expense { color:var(--expense); background:color-mix(in srgb,var(--expense) 14%,transparent); }
+    .empty { text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:10px; padding:32px 12px; }
+    .mini { display:block; color:var(--muted); font-size:11px; margin-top:2px; white-space:normal; }
+    .edit,.del { border:0; background:transparent; cursor:pointer; color:var(--muted); font-size:18px; min-height:34px; }
+    .del:hover { color:var(--expense); }
+    dialog { width:min(720px,calc(100% - 24px)); max-height:92vh; overflow:auto; border:1px solid var(--line); border-radius:15px; padding:0; background:var(--panel); color:var(--text); box-shadow:0 25px 80px #0005; }
+    dialog::backdrop { background:#07131c99; }
+    .dh { padding:19px 21px 12px; border-bottom:1px solid var(--line); }
+    .dh h2 { margin:0; font-size:19px; }
+    .dh p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+    .db { padding:17px 21px; }
+    .df { padding:12px 21px 19px; display:flex; justify-content:end; gap:8px; position:sticky; bottom:0; background:var(--panel); border-top:1px solid var(--line); }
+    .form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .f { display:grid; gap:5px; }
+    .f.full { grid-column:1/-1; }
+    .f label { font-size:13px; font-weight:650; }
+    .f input,.f select { width:100%; border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:9px; }
+    .seg { display:grid; grid-template-columns:1fr 1fr; gap:3px; background:var(--soft); padding:3px; border-radius:9px; }
+    .seg button { border:0; background:transparent; color:var(--muted); border-radius:7px; padding:7px; cursor:pointer; }
+    .seg button.on { background:var(--panel); color:var(--text); box-shadow:0 2px 7px #0001; }
+    .rate,.converted,.danger,.notice { grid-column:1/-1; border:1px solid var(--line); background:var(--soft); border-radius:10px; padding:12px; }
+    .converted { border-left:4px solid var(--brand); }
+    .danger { border-color:color-mix(in srgb,var(--expense) 40%,var(--line)); background:color-mix(in srgb,var(--expense) 6%,var(--panel)); }
+    .notice { flex-wrap:wrap;display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .notice a { color:var(--brand); }
+    .pie-layout { display:grid; grid-template-columns:240px 1fr; align-items:center; gap:24px; }
+    .pie { width:220px; height:220px; margin:auto; border-radius:50%; background:var(--soft); border:1px solid var(--line); position:relative; }
+    .pie::after { content:""; position:absolute; inset:31%; border-radius:50%; background:var(--panel); border:1px solid var(--line); }
+    .pie-legend { display:grid; gap:9px; }
+    .pie-row { display:grid; grid-template-columns:14px minmax(90px,1fr) auto; align-items:center; gap:8px; }
+    .pie-swatch { width:12px; height:12px; border-radius:3px; }
+    #busy { position:fixed; inset:0; z-index:50; background:#07131c66; display:none; place-items:center; color:#fff; font-weight:700; }
+    #toast { position:fixed; right:18px; top:82px; z-index:60; background:var(--text); color:var(--panel); padding:10px 13px; border-radius:9px; opacity:0; transform:translateY(-8px); transition:.2s; pointer-events:none; }
+    #toast.on { opacity:1; transform:none; }
+    @media(max-width:1040px) {
+      .grid4 { grid-template-columns:1fr 1fr; }
+      .layout { grid-template-columns:1fr; }
+      .user { display:none; }
+    }
+    @media(max-width:720px) {
+      .wrap { width:calc(100% - 18px); }
+      .brand p,.tools .text,.base-switch label { display:none; }
+      .topin { align-items:flex-start; padding:10px 0; }
+      .tools { flex-wrap:wrap; justify-content:end; }
+      .controlbar { align-items:stretch; flex-direction:column; }
+      .actions .btn { flex:1; }
+      .grid4 { gap:7px; }
+      .metric { padding:13px; }
+      .metric strong { font-size:16px; }
+      .form { grid-template-columns:1fr; }
+      .f.full,.rate,.converted,.danger,.notice { grid-column:1; }
+      .chart { height:285px; }
+      .bars { height:215px; }
+      .pie-layout { grid-template-columns:1fr; }
+      .pie { width:190px; height:190px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="busy">Saving…</div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <header class="top">
+    <div class="wrap topin">
+      <div class="brand">
+        <div id="appIcon" class="icon">CF</div>
+        <div>
+          <h1><span id="appTitle">Cashflow Manager</span><span class="version">Ver.5-R2 · 修正版 20260908</span></h1>
+          <p id="appSubtitle"></p>
+        </div>
+      </div>
+      <div class="tools">
+        <div class="base-switch">
+          <label for="mainBase" data-i="baseCurrency">基準通貨</label>
+          <select disabled id="mainBase" class="ctl" aria-label="Base currency">
+            <option>JPY</option><option>USD</option><option>THB</option><option>IDR</option>
+          </select>
+        </div>
+        <div id="user" class="user"></div>
+        <button id="settingsBtn" class="btn"><span>⚙</span><span class="text" data-i="settings">設定</span></button>
+      </div>
+    </div>
+  </header>
+
+  <section id="authGate" class="wrap"><div class="card" style="max-width:480px;margin:48px auto;padding:28px;text-align:center"><h2>Cashflow Manager</h2><p data-i="authIntro">Googleアカウントで始める</p><p id="authMessage" role="status"></p><button id="connect" class="btn blue" data-i="connect">Googleに接続</button><p class="sub" data-i="rememberHint">この端末で30日間ログインを維持します。共有端末では使用後にログアウトしてください。</p></div></section>
+  <div id="syncBar" class="wrap" hidden><div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;font-size:12px;color:var(--muted)"><span id="cloudStatus" role="status"></span><button id="pull" class="btn ghost" style="padding:4px 8px" title="同期 / Sync / ซิงค์" aria-label="同期 / Sync / ซิงค์">↻</button><button id="retry" class="btn" hidden data-i="retrySave">保存を再試行</button></div></div>
+  <main class="wrap" hidden>
+    <section class="controlbar">
+      <div>
+        <div class="row">
+          <select id="year" class="ctl" aria-label="Year"></select>
+          <select id="month" class="ctl" aria-label="Month"></select>
+        </div>
+        <p id="rangeLabel" class="sub"></p>
+      </div>
+      <div>
+        <div id="period" class="period">
+          <button data-p="1" class="on" data-i="monthly">月次</button>
+          <button data-p="6" data-i="sixMonths">6か月</button>
+          <button data-p="12" data-i="oneYear">1年</button>
+          <button data-p="60" data-i="fiveYears">5年</button>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button id="addIncome" class="btn green" data-i="addIncome">収入を追加</button>
+          <button id="scan" class="btn" data-i="scan">レシート撮影</button><input id="scanFile" type="file" accept="image/*" capture="environment" hidden><button id="addExpense" class="btn red" data-i="addExpense">支出を追加</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-bottom:20px"><div class="head"><div><h2 data-i="budget">月次予算</h2><p id="budgetSummary"></p></div><button id="budgetOpen" class="btn" data-i="budgetDetails">予算・内訳差額</button></div></section>
+    <section class="grid4">
+      <div class="card metric">
+        <span data-i="carry">前月繰越</span>
+        <strong id="carry"></strong>
+      </div>
+      <div id="incomeCard" class="card metric inc click">
+        <span data-i="income">収入</span>
+        <strong id="income"></strong>
+        <small data-i="clickBreakdown">クリックで内訳</small>
+      </div>
+      <div id="expenseCard" class="card metric exp click">
+        <span data-i="expense">支出</span>
+        <strong id="expense"></strong>
+        <small data-i="clickBreakdown">クリックで内訳</small>
+      </div>
+      <div class="card metric close">
+        <span data-i="closing">月末残高</span>
+        <strong id="closing"></strong>
+        <small id="prevRatio"></small>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <div class="head">
+          <div>
+            <h2 id="comparisonTitle" data-i="comparison">月次の残高・収支比較</h2>
+            <p id="comparisonSub" class="sub" data-i="separateScale">収支と残高を別々の尺度で表示</p>
+          </div>
+        </div>
+        <div class="body chart-stack">
+          <div id="cashflowPanel" class="chart-panel">
+            <div class="chart-title">
+              <strong data-i="cashflow">収支</strong>
+              <div class="legend">
+                <span><i class="dot" style="background:var(--income)"></i><span data-i="income">収入</span></span>
+                <span><i class="dot" style="background:var(--expense)"></i><span data-i="expense">支出</span></span>
+              </div>
+            </div>
+            <p class="sub" data-i="chartHint">棒をクリックすると明細割合を表示します</p>
+            <div id="cashflowChart" class="chart"></div>
+          </div>
+          <div id="balancePanel" class="chart-panel">
+            <div class="chart-title">
+              <strong data-i="balance">月末残高</strong>
+              <div class="legend"><span><i class="dot" style="background:var(--brand)"></i><span data-i="balance">月末残高</span></span></div>
+            </div>
+            <div id="balanceChart" class="chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="head">
+          <div>
+            <h2 data-i="accounts">預金口座</h2>
+            <p class="sub" data-i="accountComparison">期間開始時点との比較</p>
+          </div>
+          <button id="accountsBtn" class="btn ghost" data-i="manage">管理</button>
+        </div>
+        <div class="body"><div id="accounts" class="accounts"></div></div>
+      </div>
+    </section>
+
+    <section class="card ledger">
+      <div class="head">
+        <div>
+          <h2 data-i="transactions">収支明細</h2>
+          <p class="sub" data-i="detailHint">登録済み明細は次回から選択できます</p>
+        </div>
+        <div id="filters" class="tabs">
+          <button class="tab on" data-f="all" data-i="all">すべて</button>
+          <button class="tab" data-f="income" data-i="income">収入</button>
+          <button class="tab" data-f="expense" data-i="expense">支出</button>
+          <button class="tab" data-f="fixed" data-i="fixed">固定費</button>
+          <button class="tab" data-f="variable" data-i="variable">変動費</button>
+        </div>
+      </div>
+      <div class="body"><div id="ledger"></div></div>
+    </section>
+  </main>
+
+  <dialog id="budgetDialog"><div class="dh"><h2 data-i="budget">月次予算</h2></div><div class="db"><div id="budgetRows"></div><div class="form"><div class="f"><label data-i="detail">明細</label><input id="budgetDetail" list="budgetNames"><datalist id="budgetNames"></datalist></div><div class="f"><label data-i="amount">金額</label><input id="budgetAmount" type="number" min="0" step="0.01"></div></div><button id="budgetSave" class="btn" data-i="save">保存</button></div><div class="df"><button class="btn" data-close="budgetDialog" data-i="done">完了</button></div></dialog>
+  <dialog id="ocrDialog"><div class="dh"><h2 data-i="scanReview">読み取り結果を確認</h2></div><div class="db"><p data-i="ocrHint">読み取りには誤りがあります。日付・通貨・合計を確認して支出を登録してください。</p><textarea id="ocrText" rows="12" style="width:100%"></textarea><p id="ocrProgress" role="status"></p></div><div class="df"><button class="btn" data-close="ocrDialog" data-i="cancel">キャンセル</button><button id="ocrUse" class="btn" data-i="useScan">支出入力へ</button></div></dialog>
+  <dialog id="txDialog">
+    <div class="dh">
+      <h2 data-i="transactionEdit">収支の登録・編集</h2>
+      <p data-i="rateHint">発生日のレートで基準通貨へ換算します</p>
+    </div>
+    <div class="db"><div class="form">
+      <div class="f full"><div id="kindSeg" class="seg">
+        <button data-k="income" data-i="income">収入</button>
+        <button data-k="expense" data-i="expense">支出</button>
+      </div></div>
+      <div class="f"><label data-i="date">日付</label><input id="txDate" type="date"></div>
+      <div class="f"><label data-i="account">口座</label><select id="txAccount"></select></div>
+      <div id="costRow" class="f full">
+        <label data-i="costType">費用区分</label>
+        <div id="costSeg" class="seg">
+          <button data-c="fixed" data-i="fixed">固定費</button>
+          <button data-c="variable" data-i="variable">変動費</button>
+        </div>
+      </div>
+      <div class="f full"><label data-i="detail">明細</label><input id="txDetail" list="detailList"><datalist id="detailList"></datalist></div>
+      <div class="f"><label data-i="amount">金額</label><input id="txAmount" type="number" min="0" step="0.01"></div>
+      <div class="f"><label data-i="currency">通貨</label><select id="txCurrency"><option>JPY</option><option>USD</option><option>THB</option><option>IDR</option></select></div>
+      <div id="rateBox" class="rate">
+        <div class="row" style="justify-content:space-between">
+          <strong data-i="exchangeRate">為替レート</strong>
+          <button id="rateBtn" class="btn" data-i="refresh">再取得</button>
+        </div>
+        <div class="form" style="margin-top:8px">
+          <div class="f"><label id="rateLabel"></label><input id="txRate" type="number" min="0" step="0.00000001"></div>
+          <div class="f"><label data-i="rateInfo">レート情報</label><div id="rateInfo" class="ctl"></div></div>
+        </div>
+      </div>
+      <div class="f full"><label data-i="memo">メモ</label><input id="txMemo"></div>
+      <div class="converted"><span class="mini" data-i="converted">基準通貨換算</span><strong id="converted" class="money"></strong></div>
+    </div></div>
+    <div class="df">
+      <button class="btn" data-close="txDialog" data-i="cancel">キャンセル</button>
+      <button id="txSave" class="btn blue" data-i="save">保存</button>
+    </div>
+  </dialog>
+
+  <dialog id="accountDialog">
+    <div class="dh">
+      <h2 data-i="accountSettings">口座設定</h2>
+      <p data-i="unlimitedAccounts">口座数に制限はありません</p>
+    </div>
+    <div class="db">
+      <div class="form">
+        <input id="accountId" type="hidden">
+        <div class="f"><label data-i="bank">銀行名</label><input id="bank"></div>
+        <div class="f"><label data-i="accountName">アカウント名</label><input id="accountName"></div>
+        <div class="f"><label data-i="currency">通貨</label><select id="accountCurrency"><option>JPY</option><option>USD</option><option>THB</option><option>IDR</option></select></div>
+        <div class="f"><label data-i="openingDate">開始日</label><input id="openingDate" type="date"></div>
+        <div class="f full"><label data-i="openingBalance">開始残高</label><input id="openingAmount" type="number" step="0.01"></div>
+        <div class="f full"><button id="accountSave" class="btn blue" data-i="saveAccount">口座を保存</button></div>
+      </div>
+      <div id="accountList" class="accounts" style="margin-top:15px"></div>
+    </div>
+    <div class="df"><button class="btn" data-close="accountDialog" data-i="done">完了</button></div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <div class="dh">
+      <h2 data-i="settings">設定</h2>
+      <p data-i="settingsBehavior">保存後もこの画面は開いたままです</p>
+    </div>
+    <div class="db"><div class="form">
+      <div class="f"><label data-i="title">タイトル</label><input id="setTitle"></div>
+      <div class="f"><label data-i="subtitle">サブタイトル</label><input id="setSubtitle"></div>
+      <div class="f"><label data-i="language">言語</label><select id="setLanguage"><option value="ja">日本語</option><option value="en">English</option><option value="th">ไทย</option></select></div>
+      <div class="f"><label data-i="iconColor">アイコンカラー</label><input id="setColor" type="color"></div>
+      <div class="f full"><label data-i="theme">表示テーマ</label><select id="setTheme"><option value="light" data-i="white">白</option><option value="dark" data-i="black">黒</option></select></div>
+      <div class="notice">
+        <div>
+          <strong data-i="driveLauncher">Googleドライブ・ランチャー</strong>
+          <span id="launcherStatus" class="mini"></span>
+          <a id="launcherLink" href="#" target="_blank" rel="noopener" data-i="openLauncher">ランチャー文書を開く</a>
+        </div>
+        <button id="launcherBtn" class="btn" data-i="recreateLauncher">再作成</button>
+      </div>
+      <div class="notice"><div><strong data-i="accountConnection">アカウント・データ管理</strong><span id="accountIdentity" class="mini"></span></div><div class="actions"><button id="backup" class="btn" data-i="backup">JSONバックアップ</button><button id="logout" class="btn" data-i="logout">ログアウト</button><button id="logoutAll" class="btn" data-i="logoutAll">全端末ログアウト</button></div></div>
+      <div class="danger">
+        <strong data-i="clearAll">全クリア</strong>
+        <p class="sub" data-i="clearWarning">バックアップ作成後に全データを削除します</p>
+        <button id="clearBtn" class="btn red" data-i="clearAll">全クリア</button>
+      </div>
+    </div></div>
+    <div class="df">
+      <button id="settingsSave" class="btn blue" data-i="saveSettings">設定を保存</button>
+      <button class="btn" data-close="settingsDialog" data-i="done">完了</button>
+    </div>
+  </dialog>
+
+  <dialog id="ratioDialog">
+    <div class="dh"><h2 id="ratioTitle"></h2><p id="ratioSub"></p></div>
+    <div class="db"><div class="pie-layout">
+      <div id="pieChart" class="pie" role="img"></div>
+      <div id="ratioList" class="pie-legend"></div>
+    </div></div>
+    <div class="df"><button class="btn" data-close="ratioDialog" data-i="done">完了</button></div>
+  </dialog>
+
+  
+
+
+<script src="config.js?v=20260908"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(() => {
+'use strict';
+try {
+const CFG = window.CASHFLOW_CONFIG || {};
+function validateConfig(){
+ if(typeof CFG.clientId!=='string'||!CFG.clientId.endsWith('.apps.googleusercontent.com')||/YOUR_|現在|クライアント/.test(CFG.clientId))throw Error('config.js の clientId に実際のGoogle OAuthクライアントIDを設定してください。');
+ let u;try{u=new URL(CFG.authServer);}catch{throw Error('config.js の authServer にCloudflare Workerの公開URLを設定してください。');}
+ if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.pathname!=='/'||/YOUR_|example\./i.test(u.hostname))throw Error('config.js の authServer は実際のHTTPSのWorker URL（パスなし）にしてください。');
+}
+for(const id of ['accountCurrency', 'accountDialog', 'accountId', 'accountIdentity', 'accountList', 'accountName', 'accountSave', 'accounts', 'accountsBtn', 'addExpense', 'addIncome', 'appIcon', 'appSubtitle', 'appTitle', 'authGate', 'authMessage', 'backup', 'balanceChart', 'balancePanel', 'bank', 'budgetAmount', 'budgetDetail', 'budgetDialog', 'budgetNames', 'budgetOpen', 'budgetRows', 'budgetSave', 'budgetSummary', 'busy', 'carry', 'cashflowChart', 'cashflowPanel', 'clearBtn', 'closing', 'cloudStatus', 'comparisonSub', 'comparisonTitle', 'connect', 'converted', 'costRow', 'costSeg', 'detailList', 'expense', 'expenseCard', 'filters', 'income', 'incomeCard', 'kindSeg', 'launcherBtn', 'launcherLink', 'launcherStatus', 'ledger', 'logout', 'logoutAll', 'mainBase', 'month', 'ocrDialog', 'ocrProgress', 'ocrText', 'ocrUse', 'openingAmount', 'openingDate', 'period', 'pieChart', 'prevRatio', 'pull', 'rangeLabel', 'rateBox', 'rateBtn', 'rateInfo', 'rateLabel', 'ratioDialog', 'ratioList', 'ratioSub', 'ratioTitle', 'retry', 'scan', 'scanFile', 'setColor', 'setLanguage', 'setSubtitle', 'setTheme', 'setTitle', 'settingsBtn', 'settingsDialog', 'settingsSave', 'syncBar', 'toast', 'txAccount', 'txAmount', 'txCurrency', 'txDate', 'txDetail', 'txDialog', 'txMemo', 'txRate', 'txSave', 'user', 'year']){if(!document.getElementById(id))throw Error('画面の構成が不完全です: '+id+'。index.html を全内容で置き換えてください。');}
+/* Long-lived Google refresh tokens never enter the browser. */
+const Auth=(()=>{
+ const storageKey='cashflow-session:'+CFG.clientId+':'+CFG.authServer;
+ let saved=null,cached=null,inflight=null,user=null,force=false;
+ try{saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(!saved||typeof saved.token!=='string'||!Number.isFinite(saved.expires)||saved.expires<=Date.now())saved=null;}catch{saved=null;}
+ function clear(){saved=null;cached=null;user=null;try{localStorage.removeItem(storageKey);}catch{}}
+ async function request(path,data={},attempt=0){
+  const base=CFG.authServer;validateConfig();
+  if(!base||!/^https:\/\//.test(base)&&!/^http:\/\/localhost:\d+$/.test(base))throw Error('認証サーバーのURLをconfig.jsに設定してください。');
+  const r=await fetch(base.replace(/\/$/,'')+path,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest',...(saved?{Authorization:'Bearer '+saved.token}:{})},body:JSON.stringify(data),cache:'no-store',signal:AbortSignal.timeout(20000)});
+  const d=await r.json().catch(()=>({error:"認証サーバーを利用できません。しばらく待って再試行してください。"}));if(d.error==='TOKEN_REFRESH_BUSY'&&attempt<3){await new Promise(resolve=>setTimeout(resolve,1000));return request(path,data,attempt+1);}if(!r.ok){if(r.status===401){clear();window.dispatchEvent(new Event('auth-required'));}throw Object.assign(Error(d.error||'AUTH_SERVER_ERROR'),{status:r.status});}if(!d||typeof d!=='object'||d.error)throw Error(d?.error||'認証サーバーの応答が不正です。');return d;
+ }
+ async function token(){
+  if(!saved)throw Object.assign(Error('REAUTH_REQUIRED'),{status:401});
+  if(cached&&cached.until>Date.now()+60000&&cached.checked>Date.now()-60000)return cached.response;
+  if(inflight)return inflight;
+  inflight=request('/auth/token',{force}).then(d=>{if(!d.access_token||!(Number(d.expires_in)>0)||!d.user?.sub)throw Error('認証サーバーのトークン応答が不正です。');force=false;user=d.user;cached={checked:Date.now(),until:Date.now()+d.expires_in*1000,response:d};return d;}).finally(()=>inflight=null);return inflight;
+ }
+ async function login(code){const d=await request('/auth/code',{code});if(!/^[A-Za-z0-9_-]{43}$/.test(d.session||'')||!(d.sessionExpires>Date.now()))throw Error('認証サーバーのセッション応答が不正です。');saved={token:d.session,expires:d.sessionExpires};cached=null;try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{window.dispatchEvent(new Event('auth-storage-unavailable'));}return token();}
+ async function logout(all=false){if(saved)await request(all?'/auth/logout-all':'/auth/logout');clear();}
+ window.addEventListener('storage',e=>{if(e.key===storageKey)location.reload();});
+ return {login,token,logout,clear,get saved(){return !!saved;},get user(){return user;},invalidate(){cached=null;force=true;}};
+})();
+
+/* GIS token stays in memory; only app-created Drive files are requested. */
+const Cloud = (() => {
+ let token='', expires=0, book='', baseline=null, writing=false,pendingRows=null;
+ const scope='https://www.googleapis.com/auth/drive.file';
+ const empty=()=>({version:'5-R2',settings:{title:'Cashflow Manager',subtitle:'',language:'ja',baseCurrency:'JPY',theme:'light',iconColor:'#176da1'},accounts:[],transactions:[],details:[],budgets:[]});
+ async function googleFetch(url,options={}){
+  const t=await Auth.token();token=t.access_token;
+  let r=await fetch(url,{...options,headers:{...options.headers,Authorization:'Bearer '+token}});
+  if(r.status===401){Auth.invalidate();const fresh=await Auth.token();token=fresh.access_token;r=await fetch(url,{...options,headers:{...options.headers,Authorization:'Bearer '+token}});}
+  return r;
+ }
+ async function api(url,method='GET',body){
+  const r=await googleFetch(url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw Error(`Google API ${r.status}: ${(await r.text()).slice(0,250)}`);
+  return r.status===204?{}:r.json();
+ }
+ const sheet=(path)=>`https://sheets.googleapis.com/v4/spreadsheets/${book}${path}`;
+ function key(v){return String(v.id??JSON.stringify([v.kind,v.label]));}
+ function diff(old,next){const ops=[]; for(const table of ['accounts','transactions','details','budgets']){const a=new Map((old[table]||[]).map(v=>[key(v),v])),b=new Map((next[table]||[]).map(v=>[key(v),v])); for(const [id,v] of b)if(JSON.stringify(a.get(id))!==JSON.stringify(v))ops.push({table,id,value:v}); for(const id of a.keys())if(!b.has(id))ops.push({table,id,value:null});}for(const [id,value] of Object.entries(next.settings))if(old.settings[id]!==value)ops.push({table:'settings',id,value});return ops;}
+ function replay(rows){const d=empty(),seen=new Set();for(const row of rows){if(!row[0]||seen.has(row[0]))continue;seen.add(row[0]);const op=JSON.parse(row[2]);if(op.table==='settings')d.settings[op.id]=op.value;else if(['accounts','transactions','details','budgets'].includes(op.table)){d[op.table]=d[op.table].filter(v=>key(v)!==op.id);if(op.value!==null)d[op.table].push(op.value);}}return d;}
+ async function read(){const r=await api(sheet('/values/Events!A2:C'));return replay(r.values||[]);}
+ async function load(){const d=await read();
+ for(const t of d.transactions)if(t.baseCurrency!==d.settings.baseCurrency){const r=await rate(t.date,t.currency,d.settings.baseCurrency);Object.assign(t,{rate:r.rate,rateDate:r.date,rateSource:r.source,baseCurrency:d.settings.baseCurrency,baseAmount:Math.round(t.amount*r.rate*100)/100});}
+ for(const a of d.accounts)if(a.baseCurrency!==d.settings.baseCurrency){const r=await rate(a.openingDate,a.currency,d.settings.baseCurrency);Object.assign(a,{openingRate:r.rate,openingRateDate:r.date,baseCurrency:d.settings.baseCurrency,openingBase:Math.round(a.openingAmount*r.rate*100)/100});}
+ for(const b of d.budgets)if(b.currency!==d.settings.baseCurrency){const r=await rate(b.month+'-01',b.currency,d.settings.baseCurrency);b.amount=Math.round(b.amount*r.rate*100)/100;b.currency=d.settings.baseCurrency;}
+ baseline=structuredClone(d);return d;}
+ async function refresh(){if(writing)throw Error('保存中');return load();}
+ async function upload(blob){
+ const boundary='cf_'+crypto.randomUUID();
+ const metadata=JSON.stringify({name:'Receipt-'+new Date().toISOString(),appProperties:{cashflowReceipt:book}});
+ const body=new Blob(['--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+metadata+'\r\n--'+boundary+'\r\nContent-Type: '+(blob.type||'application/octet-stream')+'\r\n\r\n',blob,'\r\n--'+boundary+'--']);
+
+ const r=await googleFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+boundary},body});if(!r.ok)throw Error('画像の保存に失敗しました');return (await r.json()).id;
+ }
+
+ async function save(d){if(writing)throw Error('保存処理中です。');writing=true;try{const ops=diff(baseline||empty(),d), rows=ops.map(op=>[crypto.randomUUID(),new Date().toISOString(),JSON.stringify(op)]);if(pendingRows)throw Error('未確認の保存があります。保存を再試行してください。');if(rows.some(r=>r[2].length>45000))throw Error('1件のデータが大きすぎます。');pendingRows=rows;return await retrySave();}finally{writing=false;}}
+ async function retrySave(){
+  if(!pendingRows)return {data:await load()};
+  const existing=await api(sheet('/values/Events!A2:A'));const ids=new Set((existing.values||[]).map(row=>row[0]));
+  const missing=pendingRows.filter(row=>!ids.has(row[0]));
+  if(missing.length)await api(sheet('/values/Events!A:C:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS'),'POST',{values:missing});
+  const result={data:await load()};pendingRows=null;return result;
+ }
+ async function connect(response,preserve=false){const oldBaseline=baseline,oldBook=book;token=response.access_token;expires=Date.now()+(Number(response.expires_in)-60)*1000; const q="trashed=false and mimeType='application/vnd.google-apps.spreadsheet' and appProperties has { key='cashflow' and value='5-R2' }";const list=await api('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q='+encodeURIComponent(q));if(list.files.length>1)throw Error('専用台帳が複数あります。Driveで不要な空台帳を整理してください。');const found=list.files[0]?.id||'';if(oldBook&&oldBook!==found)throw Error('接続先の台帳が変更されています。ログアウト後に接続してください。');book=found;
+ if(!book){const f=await api('https://www.googleapis.com/drive/v3/files','POST',{name:'Cashflow Manager Ver.5-R2',mimeType:'application/vnd.google-apps.spreadsheet',appProperties:{cashflow:'5-R2'}});book=f.id;}
+ const meta=await api(sheet('?fields=sheets.properties'));if(!meta.sheets.some(s=>s.properties.title==='Events'))await api(sheet(':batchUpdate'),'POST',{requests:[{addSheet:{properties:{title:'Events'}}}]});await api(sheet('/values/Events!A1:C1?valueInputOption=RAW'),'PUT',{values:[['EventID','SavedAt','ChangeJSON']]});
+ if(!meta.sheets.some(s=>s.properties.title==='Launch')){await api(sheet(':batchUpdate'),'POST',{requests:[{addSheet:{properties:{title:'Launch'}}}]});}
+ await api(sheet('/values/Launch!A1:B2?valueInputOption=RAW'),'PUT',{values:[['Cashflow Manager Ver.5-R2',location.href.split('?')[0].split('#')[0]],['Open app / アプリを開く','B1 の URL をクリックしてください']]});
+ const fresh=await load();if(oldBook&&oldBook!==book){token="";book=oldBook;baseline=oldBaseline;throw Error("別のGoogleアカウントです。ログアウト後に接続してください。");}if(oldBaseline&&preserve)baseline=oldBaseline;return fresh;}
+ async function rate(date,from,to){if(from===to)return {rate:1,date,source:'Same currency'};const r=await fetch(`https://api.frankfurter.dev/v2/rate/${from}/${to}?date=${date}`);if(!r.ok)throw Error('為替取得に失敗しました。');const d=await r.json();if(!(d.rate>0))throw Error('為替データ不正');return {...d,source:'Frankfurter'};}
+ async function rebase(data,to){const d=structuredClone(data);for(const t of d.transactions){const r=await rate(t.date,t.currency,to);Object.assign(t,{rate:r.rate,rateDate:r.date,rateSource:r.source,baseCurrency:to,baseAmount:Math.round(t.amount*r.rate*100)/100});}for(const a of d.accounts){const r=await rate(a.openingDate,a.currency,to);a.baseCurrency=to;a.openingRate=r.rate;a.openingRateDate=r.date;a.openingBase=Math.round(a.openingAmount*r.rate*100)/100;}for(const b of d.budgets||[]){const r=await rate(b.month+'-01',b.currency||d.settings.baseCurrency,to);b.amount=Math.round(b.amount*r.rate*100)/100;b.currency=to;}d.settings.baseCurrency=to;return (await save(d)).data;}
+ return {scope,empty,diff,replay,connect,load,refresh,upload,save,rate,rebase,get ready(){return !!token&&Auth.saved;},get url(){return `https://docs.google.com/spreadsheets/d/${book}/edit`;},async call(name,args){if(name==='saveAppData')return pendingRows?retrySave():save(args[0]);if(name==='fetchHistoricalRate')return rate(...args);if(name==='rebaseAppData')return rebase(...args);if(name==='clearAllData'){if(args[0]!=='CLEAR')throw Error('Confirmation required');return (await save(empty())).data;}if(name==='createDriveLauncher')return {ready:true,driveFileUrl:this.url};throw Error(name);}};
+})();
+
+
+    const I = {
+      ja: {
+        settings:'設定', monthly:'月次', sixMonths:'6か月', oneYear:'1年', fiveYears:'5年',
+        addIncome:'収入を追加', addExpense:'支出を追加', carry:'前月繰越', income:'収入', expense:'支出',
+        clickBreakdown:'クリックで内訳', closing:'月末残高', comparison:'月次の残高・収支比較',
+        cashflowComparison:'月次の収支比較', monthlyCashflowHint:'選択月の収入と支出を表示',
+        separateScale:'収支と残高を別々の尺度で表示', cashflow:'収支', chartHint:'棒をクリックすると明細割合を表示します',
+        balance:'月末残高', accounts:'預金口座', accountComparison:'期間開始時点との比較', manage:'管理',
+        transactions:'収支明細', detailHint:'登録済み明細は次回から選択できます', all:'すべて',
+        fixed:'固定費', variable:'変動費', transactionEdit:'収支の登録・編集',
+        rateHint:'発生日のレートで基準通貨へ換算します', date:'日付', account:'口座', costType:'費用区分',
+        detail:'明細', amount:'金額', currency:'通貨', baseCurrency:'基準通貨', exchangeRate:'為替レート',
+        refresh:'再取得', rateInfo:'レート情報', memo:'メモ', converted:'基準通貨換算', cancel:'キャンセル',
+        save:'保存', accountSettings:'口座設定', unlimitedAccounts:'口座数に制限はありません', bank:'銀行名',
+        accountName:'アカウント名', openingDate:'開始日', openingBalance:'開始残高', saveAccount:'口座を保存',
+        done:'完了', title:'タイトル', subtitle:'サブタイトル', language:'言語', iconColor:'アイコンカラー',
+        theme:'表示テーマ', white:'白', black:'黒', saveSettings:'設定を保存',
+        settingsBehavior:'保存後もこの画面は開いたままです', clearAll:'全クリア',
+        clearWarning:'バックアップ作成後に全データを削除します', prevRatio:'前月比', noData:'データがありません',
+        none:'口座なし', edit:'編集', delete:'削除', period:'対象期間', periodChange:'対象期間の増減',
+        saved:'保存しました', cleared:'全データをクリアしました', confirmClear:'本当に全データをクリアしますか？',
+        confirmDelete:'この項目を削除しますか？', confirmBase:'基準通貨を変更し、全取引を発生日レートで再換算しますか？',
+        inputError:'入力内容を確認してください', driveLauncher:'Googleドライブ・ランチャー',
+        openLauncher:'ランチャー文書を開く', recreateLauncher:'再作成', launcherReady:'利用できます',
+        launcherUnavailable:'デプロイ後に作成できます', launcherCreated:'ランチャーを作成しました'
+      },
+      en: {
+        settings:'Settings', monthly:'Monthly', sixMonths:'6 months', oneYear:'1 year', fiveYears:'5 years',
+        addIncome:'Add income', addExpense:'Add expense', carry:'Previous balance', income:'Income', expense:'Expense',
+        clickBreakdown:'Click for breakdown', closing:'Month-end balance', comparison:'Monthly balance & cashflow',
+        cashflowComparison:'Monthly cashflow', monthlyCashflowHint:'Income and expenses for the selected month',
+        separateScale:'Cashflow and balance use separate scales', cashflow:'Cashflow', chartHint:'Click a bar for item percentages',
+        balance:'Month-end balance', accounts:'Bank accounts', accountComparison:'Compared with start of period', manage:'Manage',
+        transactions:'Transactions', detailHint:'Saved details can be selected again', all:'All',
+        fixed:'Fixed cost', variable:'Variable cost', transactionEdit:'Add / edit transaction',
+        rateHint:'Converted using the rate on the transaction date', date:'Date', account:'Account', costType:'Cost type',
+        detail:'Detail', amount:'Amount', currency:'Currency', baseCurrency:'Base currency', exchangeRate:'Exchange rate',
+        refresh:'Refresh', rateInfo:'Rate information', memo:'Memo', converted:'Base-currency value', cancel:'Cancel',
+        save:'Save', accountSettings:'Account settings', unlimitedAccounts:'There is no account limit', bank:'Bank',
+        accountName:'Account name', openingDate:'Opening date', openingBalance:'Opening balance', saveAccount:'Save account',
+        done:'Done', title:'Title', subtitle:'Subtitle', language:'Language', iconColor:'Icon color',
+        theme:'Theme', white:'Light', black:'Dark', saveSettings:'Save settings',
+        settingsBehavior:'This window stays open after saving', clearAll:'Clear all',
+        clearWarning:'Creates a backup, then deletes all data', prevRatio:'vs previous month', noData:'No data',
+        none:'No account', edit:'Edit', delete:'Delete', period:'Period', periodChange:'Change during period',
+        saved:'Saved', cleared:'All data cleared', confirmClear:'Are you sure you want to clear all data?',
+        confirmDelete:'Delete this item?', confirmBase:'Change the base currency and recalculate every transaction using its historical rate?',
+        inputError:'Check the entered values', driveLauncher:'Google Drive launcher',
+        openLauncher:'Open launcher document', recreateLauncher:'Recreate', launcherReady:'Ready to use',
+        launcherUnavailable:'Available after deployment', launcherCreated:'Launcher created'
+      },
+      th: {
+        settings:'การตั้งค่า', monthly:'รายเดือน', sixMonths:'6 เดือน', oneYear:'1 ปี', fiveYears:'5 ปี',
+        addIncome:'เพิ่มรายรับ', addExpense:'เพิ่มรายจ่าย', carry:'ยอดยกมา', income:'รายรับ', expense:'รายจ่าย',
+        clickBreakdown:'คลิกดูรายละเอียด', closing:'ยอดสิ้นเดือน', comparison:'เปรียบเทียบยอดคงเหลือและกระแสเงินสดรายเดือน',
+        cashflowComparison:'กระแสเงินสดรายเดือน', monthlyCashflowHint:'รายรับและรายจ่ายของเดือนที่เลือก',
+        separateScale:'แสดงกระแสเงินสดและยอดคงเหลือคนละมาตราส่วน', cashflow:'กระแสเงินสด', chartHint:'คลิกแท่งเพื่อดูสัดส่วนรายการ',
+        balance:'ยอดสิ้นเดือน', accounts:'บัญชีเงินฝาก', accountComparison:'เทียบกับต้นงวด', manage:'จัดการ',
+        transactions:'รายการรับจ่าย', detailHint:'รายละเอียดที่บันทึกไว้จะเลือกได้ครั้งต่อไป', all:'ทั้งหมด',
+        fixed:'ค่าใช้จ่ายคงที่', variable:'ค่าใช้จ่ายผันแปร', transactionEdit:'เพิ่ม / แก้ไขรายการ',
+        rateHint:'แปลงตามอัตราแลกเปลี่ยนวันที่ทำรายการ', date:'วันที่', account:'บัญชี', costType:'ประเภทค่าใช้จ่าย',
+        detail:'รายละเอียด', amount:'จำนวนเงิน', currency:'สกุลเงิน', baseCurrency:'สกุลเงินหลัก', exchangeRate:'อัตราแลกเปลี่ยน',
+        refresh:'ดึงใหม่', rateInfo:'ข้อมูลอัตรา', memo:'บันทึก', converted:'ยอดในสกุลเงินหลัก', cancel:'ยกเลิก',
+        save:'บันทึก', accountSettings:'ตั้งค่าบัญชี', unlimitedAccounts:'ไม่จำกัดจำนวนบัญชี', bank:'ธนาคาร',
+        accountName:'ชื่อบัญชี', openingDate:'วันที่เริ่ม', openingBalance:'ยอดเริ่มต้น', saveAccount:'บันทึกบัญชี',
+        done:'เสร็จ', title:'ชื่อเรื่อง', subtitle:'ชื่อรอง', language:'ภาษา', iconColor:'สีไอคอน',
+        theme:'ธีม', white:'สว่าง', black:'มืด', saveSettings:'บันทึกการตั้งค่า',
+        settingsBehavior:'หน้าต่างนี้จะยังเปิดอยู่หลังบันทึก', clearAll:'ล้างทั้งหมด',
+        clearWarning:'สำรองข้อมูลก่อนลบข้อมูลทั้งหมด', prevRatio:'เทียบเดือนก่อน', noData:'ไม่มีข้อมูล',
+        none:'ไม่ระบุบัญชี', edit:'แก้ไข', delete:'ลบ', period:'ช่วงเวลา', periodChange:'การเปลี่ยนแปลงในช่วงเวลา',
+        saved:'บันทึกแล้ว', cleared:'ล้างข้อมูลทั้งหมดแล้ว', confirmClear:'ต้องการล้างข้อมูลทั้งหมดจริงหรือ?',
+        confirmDelete:'ต้องการลบรายการนี้หรือไม่?', confirmBase:'เปลี่ยนสกุลเงินหลักและคำนวณทุกรายการใหม่ด้วยอัตราในวันที่เกิดรายการหรือไม่?',
+        inputError:'โปรดตรวจสอบข้อมูล', driveLauncher:'ตัวเปิดจาก Google Drive',
+        openLauncher:'เปิดเอกสารตัวเปิด', recreateLauncher:'สร้างใหม่', launcherReady:'พร้อมใช้งาน',
+        launcherUnavailable:'สร้างได้หลังจากปรับใช้', launcherCreated:'สร้างตัวเปิดแล้ว'
+      }
+    };
+
+    const MONTHS = {
+      en:['January','February','March','April','May','June','July','August','September','October','November','December'],
+      th:['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม']
+    };
+    const SHORT_MONTHS = {
+      en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      th:['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
+    };
+    const PIE_COLORS = ['#176da1','#16885d','#d95255','#e69f35','#7655c7','#2a9db0','#d06e9e','#6e8b3d','#a85d32','#4f6fae','#b68a16','#687681'];
+    const sym = { JPY:'￥', USD:'$', THB:'฿', IDR:'Rp' };
+    const $ = id => document.getElementById(id);
+    let D = null;
+    let U = null;
+    let L = null;
+    let P = 1;
+    let F = 'all';
+    let K = 'expense';
+    let C = 'variable';
+    let editing = null;
+    let rateMeta = { date:'', source:'' };
+    let rateRequest=0;
+
+    const tr = key => (I[D?.settings?.language || 'ja'] || I.ja)[key] || I.ja[key] || key;
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const today = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    };
+    const fmt = (value, currency = D.settings.baseCurrency) =>
+      `${sym[currency]} ${Number(value || 0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+
+    function busy(value) { $('busy').style.display=value?'grid':'none';document.querySelectorAll('dialog .db,dialog .df').forEach(el=>el.inert=value); }
+    function toast(message) {
+      $('toast').textContent = message;
+      $('toast').classList.add('on');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => $('toast').classList.remove('on'), 2400);
+    }
+    function fail(error) {
+      busy(false);
+      if(typeof dirty!=="undefined"){ $('retry').hidden=!dirty;if(dirty)lock(true);$('retry').disabled=false; }
+      toast(error?.message || String(error));
+    }
+    let dirty = false;
+    function server(name,args,success,failure=fail) {
+      busy(true);
+      const mutation=['saveAppData','rebaseAppData','clearAllData'].includes(name);if(mutation)dirty=true;
+      Cloud.call(name,args).then(result=>{busy(false);if(mutation){dirty=false;$('retry').hidden=true;lock(false);}success(result);}).catch(failure);
+    }
+    function init() {
+      D=Cloud.empty();U={displayName:'Google',email:''};L={ready:false};setupDates();render();
+    }
+
+    function setupDates() {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      $('year').innerHTML = Array.from({length:31}, (_,i) => {
+        const year = currentYear + 5 - i;
+        return `<option value="${year}">${year}</option>`;
+      }).join('');
+      $('year').value = currentYear;
+      $('month').innerHTML = Array.from({length:12}, (_,i) => `<option value="${i+1}">${i+1}</option>`).join('');
+      $('month').value = now.getMonth() + 1;
+      refreshDateOptions();
+    }
+
+    function language() { return D.settings.language || 'ja'; }
+    function yearLabel(year) {
+      if (language() === 'ja') return `${year}年`;
+      if (language() === 'th') return `พ.ศ. ${Number(year) + 543}`;
+      return String(year);
+    }
+    function monthLabel(month) {
+      if (language() === 'ja') return `${month}月`;
+      return MONTHS[language()]?.[month-1] || String(month);
+    }
+    function refreshDateOptions() {
+      const year = $('year').value;
+      const month = Number($('month').value);
+      Array.from($('year').options).forEach(option => { option.textContent = yearLabel(option.value); });
+      Array.from($('month').options).forEach(option => { option.textContent = monthLabel(Number(option.value)); });
+      $('year').value = year;
+      $('month').value = month;
+    }
+    function monthKey(year, month) { return `${year}-${String(month).padStart(2,'0')}`; }
+    function addMonths(key, amount) {
+      const [year,month] = key.split('-').map(Number);
+      const date = new Date(year, month - 1 + amount, 1);
+      return monthKey(date.getFullYear(), date.getMonth() + 1);
+    }
+    function selected() { return monthKey($('year').value, $('month').value); }
+    function months() {
+      const end = selected();
+      return Array.from({length:P}, (_,i) => addMonths(end, i - P + 1));
+    }
+    function endOfMonth(key) {
+      const [year,month] = key.split('-').map(Number);
+      return `${year}-${String(month).padStart(2,'0')}-${String(new Date(year,month,0).getDate()).padStart(2,'0')}`;
+    }
+    function formatDate(dateString) {
+      const [year,month,day] = dateString.split('-').map(Number);
+      if (language() === 'ja') return `${year}.${month}.${day}`;
+      if (language() === 'en') return `${MONTHS.en[month-1]} ${day}, ${year}`;
+      return `${day} ${MONTHS.th[month-1]} พ.ศ. ${year+543}`;
+    }
+    function compactMonth(key) {
+      const [year,month] = key.split('-').map(Number);
+      if (language() === 'ja') return `${year}年${month}月`;
+      if (language() === 'th') return `${SHORT_MONTHS.th[month-1]} ${year+543}`;
+      return `${SHORT_MONTHS[language()]?.[month-1] || month} ${year}`;
+    }
+
+    function openingBase(before) {
+      return D.accounts.filter(a=>!before || a.openingDate<before).reduce((sum,account) => sum + Number(account.openingBase || 0), 0);
+    }
+    function monthSummary(key) {
+      const start = key + '-01';
+      const end = addMonths(key,1) + '-01';
+      let carry = openingBase(start);
+      let income = 0;
+      let expense = 0;
+      D.transactions.forEach(tx => {
+        const signed = tx.kind === 'income' ? Number(tx.baseAmount || 0) : -Number(tx.baseAmount || 0);
+        if (tx.date < start) carry += signed;
+        else if (tx.date < end) {
+          if (tx.kind === 'income') income += Number(tx.baseAmount || 0);
+          else expense += Number(tx.baseAmount || 0);
+        }
+      });
+      return { key,start,end,carry,income,expense,closing:carry+income-expense+openingBase(end)-openingBase(start) };
+    }
+
+    function render() {
+      document.documentElement.classList.toggle('dark', D.settings.theme === 'dark');
+      document.documentElement.lang = language();
+      document.documentElement.style.setProperty('--brand', D.settings.iconColor);
+      $('appTitle').textContent = D.settings.title;
+      $('appSubtitle').textContent = D.settings.subtitle;
+      $('appIcon').style.background = D.settings.iconColor;
+      $('appIcon').textContent = (D.settings.title || 'CF').slice(0,2).toUpperCase();
+      $('mainBase').value = D.settings.baseCurrency;
+      $('user').innerHTML = `${esc(U.displayName)}<br>${esc(U.email)}`;
+      document.querySelectorAll('[data-i]').forEach(element => { element.textContent = tr(element.dataset.i); });
+      $('comparisonTitle').textContent = P === 1 ? tr('cashflowComparison') : tr('comparison');
+      $('comparisonSub').textContent = P === 1 ? tr('monthlyCashflowHint') : tr('separateScale');
+      refreshDateOptions();
+      document.querySelectorAll('#period button').forEach(button => button.classList.toggle('on', Number(button.dataset.p) === P));
+
+      const list = months();
+      const current = monthSummary(selected());
+      $('rangeLabel').textContent = `${tr('period')}: ${formatDate(list[0] + '-01')} – ${formatDate(endOfMonth(list[list.length-1]))}`;
+      $('carry').textContent = fmt(current.carry);
+      $('income').textContent = fmt(current.income);
+      $('expense').textContent = fmt(current.expense);
+      $('closing').textContent = fmt(current.closing);
+      $('prevRatio').textContent = current.carry ? `${tr('prevRatio')}: ${(current.closing/current.carry*100).toFixed(1)}%` : '—';
+
+      renderChart(list.map(monthSummary));
+      renderAccounts(list[0]);
+      renderLedger(current);
+      renderLauncher();
+      renderBudget();
+    }
+
+    function renderChart(rows) {
+      const cashMax = Math.max(1, ...rows.flatMap(row => [Math.abs(row.income),Math.abs(row.expense)]));
+      const balanceMax = Math.max(1, ...rows.map(row => Math.abs(row.closing)));
+      const isMonthly = P === 1;
+      const cashflowPanel = $('cashflowPanel');
+      const balancePanel = $('balancePanel');
+      cashflowPanel.hidden = false;
+      cashflowPanel.style.display = '';
+      balancePanel.hidden = isMonthly;
+      balancePanel.style.display = isMonthly ? 'none' : '';
+      $('cashflowChart').classList.toggle('single-month', isMonthly);
+      $('cashflowChart').innerHTML = rows.map(row => `
+        <div class="monthcol">
+          <div class="bars">
+            <i class="bar inc" data-ratio="income" data-month="${row.key}" style="height:${Math.max(3,Math.abs(row.income)/cashMax*230)}px" title="${fmt(row.income)}"></i>
+            <i class="bar exp" data-ratio="expense" data-month="${row.key}" style="height:${Math.max(3,Math.abs(row.expense)/cashMax*230)}px" title="${fmt(row.expense)}"></i>
+          </div>
+          <span class="xlab">${compactMonth(row.key)}</span>
+        </div>`).join('');
+      $('balanceChart').innerHTML = isMonthly ? '' : rows.map(row => `
+        <div class="monthcol">
+          <div class="bars">
+            <i class="bar bal" style="height:${Math.max(3,Math.abs(row.closing)/balanceMax*230)}px" title="${fmt(row.closing)}"></i>
+          </div>
+          <span class="xlab">${compactMonth(row.key)}</span>
+        </div>`).join('');
+    }
+
+    function accountAt(account, end) {
+      let native = account.openingDate < end ? Number(account.openingAmount || 0) : 0;
+      let base = account.openingDate < end ? Number(account.openingBase || 0) : 0;
+      D.transactions.filter(tx => tx.accountId === account.id && tx.date < end).forEach(tx => {
+        const sign = tx.kind === 'income' ? 1 : -1;
+        native += sign * Number(tx.amount || 0);
+        base += sign * Number(tx.baseAmount || 0);
+      });
+      return { native,base };
+    }
+
+    function renderAccounts(first) {
+      const start = first + '-01';
+      const end = addMonths(selected(),1) + '-01';
+      $('accounts').innerHTML = D.accounts.length ? D.accounts.map(account => {
+        const now = accountAt(account,end);
+        const before = accountAt(account,start);
+        const nativeChange = now.native - before.native;
+        const baseChange = now.base - before.base;
+        const nativeSign = nativeChange >= 0 ? '+' : '';
+        const baseSign = baseChange >= 0 ? '+' : '';
+        return `<div class="account">
+          <div>
+            <strong>${esc(account.bank)}</strong>
+            <small>${esc(account.name)} · ${account.currency}</small>
+            <small>${tr('periodChange')} (${account.currency}): ${nativeSign}${fmt(nativeChange,account.currency)}<br>
+              ${tr('periodChange')} (${D.settings.baseCurrency}): ${baseSign}${fmt(baseChange,D.settings.baseCurrency)}</small>
+          </div>
+          <div class="money">${fmt(now.native,account.currency)}<span class="mini">${fmt(now.base,D.settings.baseCurrency)}</span></div>
+        </div>`;
+      }).join('') : `<div class="empty">${tr('noData')}</div>`;
+    }
+
+    function renderLedger(summary) {
+      let rows = D.transactions
+        .filter(tx => tx.date >= summary.start && tx.date < summary.end)
+        .sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+      if (F !== 'all') rows = rows.filter(tx => F === 'income' || F === 'expense' ? tx.kind === F : tx.kind === 'expense' && tx.costType === F);
+      if (!rows.length) {
+        $('ledger').innerHTML = `<div class="empty">${tr('noData')}</div>`;
+        return;
+      }
+      $('ledger').innerHTML = `<div class="tablewrap"><table>
+        <thead><tr><th>${tr('date')}</th><th>${tr('costType')}</th><th>${tr('detail')}</th><th>${tr('account')}</th><th class="right">${tr('amount')}</th><th class="right">${tr('converted')}</th><th></th></tr></thead>
+        <tbody>${rows.map(tx => {
+          const account = D.accounts.find(item => item.id === tx.accountId);
+          const label = tx.kind === 'income' ? tr('income') : tr(tx.costType);
+          const foreign = tx.currency !== tx.baseCurrency;
+          return `<tr>
+            <td>${formatDate(tx.date)}</td>
+            <td><span class="tag ${tx.kind}">${label}</span></td>
+            <td><strong>${esc(tx.detail)}</strong>${tx.receiptId ? `<a href="https://drive.google.com/file/d/${encodeURIComponent(tx.receiptId)}/view" target="_blank" rel="noopener"> 📎</a>` : ''}<span class="mini">${esc(tx.memo)}</span></td>
+            <td>${account ? esc(account.bank + ' / ' + account.name) : '—'}</td>
+            <td class="right money">${fmt(tx.amount,tx.currency)}
+              ${foreign ? `<span class="mini">1 ${tx.currency} = ${Number(tx.rate).toLocaleString('en-US',{maximumFractionDigits:8})} ${tx.baseCurrency}<br>${formatDate(tx.rateDate || tx.date)} · ${esc(tx.rateSource)}</span>` : ''}
+            </td>
+            <td class="right money" style="color:var(--${tx.kind})">${tx.kind === 'income' ? '+' : '−'}${fmt(tx.baseAmount,tx.baseCurrency)}</td>
+            <td><button class="edit" data-edit="${tx.id}" aria-label="${tr('edit')}">✎</button><button class="del" data-del="${tx.id}" aria-label="${tr('delete')}">×</button></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    }
+
+    function sync(message, callback) {
+      server('saveAppData', [D], result => {
+        D = result.data;
+        render();
+        toast(message || tr('saved'));
+        if (callback) callback();
+      });
+    }
+
+    function fillAccountSelect() {
+      $('txAccount').innerHTML = `<option value="">${tr('none')}</option>` +
+        D.accounts.map(account => `<option value="${account.id}">${esc(account.bank + ' / ' + account.name)} · ${account.currency}</option>`).join('');
+    }
+
+    function openTx(kind,id) {
+      rateRequest++;
+      pendingReceipt=null;
+      editing = id || null;
+      const tx = id ? D.transactions.find(item => item.id === id) : null;
+      K = tx?.kind || kind;
+      C = tx?.costType || 'variable';
+      $('txDate').value = tx?.date || today();
+      $('txDetail').value = tx?.detail || '';
+      $('txAmount').value = tx?.amount || '';
+      $('txMemo').value = tx?.memo || '';
+      $('txCurrency').value = tx?.currency || D.settings.baseCurrency;
+      $('txRate').value = tx?.rate || 1;
+      rateMeta = { date:tx?.rateDate || $('txDate').value, source:tx?.rateSource || 'Base currency' };
+      fillAccountSelect();
+      $('txAccount').value = tx?.accountId || '';
+      updateTx();
+      $('txDialog').showModal();
+    }
+
+    function updateTx() {
+      document.querySelectorAll('#kindSeg button').forEach(button => button.classList.toggle('on',button.dataset.k === K));
+      document.querySelectorAll('#costSeg button').forEach(button => button.classList.toggle('on',button.dataset.c === C));
+      $('costRow').style.display = K === 'expense' ? 'grid' : 'none';
+      $('detailList').innerHTML = D.details.filter(item => item.kind === K).map(item => `<option value="${esc(item.label)}">`).join('');
+      const foreign = $('txCurrency').value !== D.settings.baseCurrency;
+      $('rateBox').style.display = foreign ? 'block' : 'none';
+      if (!foreign) {
+        $('txRate').value = 1;
+        rateMeta = { date:$('txDate').value, source:'Base currency' };
+      }
+      $('rateLabel').textContent = `1 ${$('txCurrency').value} = (${D.settings.baseCurrency})`;
+      $('rateInfo').textContent = `${rateMeta.date} · ${rateMeta.source}`;
+      $('converted').textContent = fmt(Number($('txAmount').value || 0) * Number($('txRate').value || 0));
+    }
+
+    function fetchRate() {
+      const request=++rateRequest;
+      $('txRate').value=0; rateMeta={date:$('txDate').value,source:'Manual'};
+      const from = $('txCurrency').value;
+      const to = D.settings.baseCurrency;
+      const date = $('txDate').value;
+      if (from === to) { updateTx(); return; }
+      server('fetchHistoricalRate',[date,from,to],result => {
+        if(request!==rateRequest||date!==$('txDate').value||from!==$('txCurrency').value)return;
+        $('txRate').value = result.rate;
+        rateMeta = { date:result.date, source:result.source };
+        updateTx();
+      });
+    }
+
+    function saveTx() {
+      const detail = $('txDetail').value.trim();
+      const amount = Number($('txAmount').value);
+      const rate = Number($('txRate').value);
+      if (!detail || !$('txDate').value || !Number.isFinite(amount) || !Number.isFinite(rate) || !(amount > 0) || !(rate > 0)) return toast(tr('inputError'));
+      const account = D.accounts.find(item => item.id === Number($('txAccount').value));
+      if (account && account.currency !== $('txCurrency').value) return toast(`${tr('currency')}: ${account.currency}`);
+      const tx = {
+        id:editing || newId(),
+        receiptId: D.transactions.find(t=>t.id===editing)?.receiptId || pendingReceipt,
+        date:$('txDate').value,
+        kind:K,
+        costType:K === 'expense' ? C : null,
+        detail:detail,
+        memo:$('txMemo').value.trim(),
+        currency:$('txCurrency').value,
+        amount:amount,
+        rate:rate,
+        rateDate:rateMeta.date,
+        rateSource:rateMeta.source,
+        baseCurrency:D.settings.baseCurrency,
+        baseAmount:Math.round(amount * rate * 100) / 100,
+        accountId:$('txAccount').value ? Number($('txAccount').value) : null
+      };
+      if (editing) D.transactions = D.transactions.map(item => item.id === editing ? tx : item);
+      else D.transactions.push(tx);
+      if (!D.details.some(item => item.kind === K && item.label === detail)) D.details.push({kind:K,label:detail});
+      $('txDialog').close();
+      sync();
+    }
+
+    function breakdown(kind,key = selected()) {
+      const summary = monthSummary(key);
+      const rows = D.transactions.filter(tx => tx.kind === kind && tx.date >= summary.start && tx.date < summary.end);
+      const total = rows.reduce((sum,tx) => sum + Number(tx.baseAmount || 0), 0);
+      const grouped = Object.create(null);
+      rows.forEach(tx => { grouped[tx.detail] = (grouped[tx.detail] || 0) + Number(tx.baseAmount || 0); });
+      const entries = Object.entries(grouped).sort((a,b) => b[1] - a[1]);
+      $('ratioTitle').textContent = tr(kind);
+      $('ratioSub').textContent = compactMonth(key);
+      if (!total) {
+        $('pieChart').style.background = 'var(--soft)';
+        $('pieChart').setAttribute('aria-label',tr('noData'));
+        $('ratioList').innerHTML = `<div class="empty">${tr('noData')}</div>`;
+      } else {
+        let cursor = 0;
+        const stops = entries.map((entry,index) => {
+          const start = cursor;
+          cursor += entry[1] / total * 100;
+          return `${PIE_COLORS[index % PIE_COLORS.length]} ${start}% ${cursor}%`;
+        });
+        $('pieChart').style.background = `conic-gradient(${stops.join(',')})`;
+        $('pieChart').setAttribute('aria-label',`${tr(kind)} ${compactMonth(key)}`);
+        $('ratioList').innerHTML = entries.map((entry,index) => {
+          const percent = entry[1] / total * 100;
+          return `<div class="pie-row">
+            <i class="pie-swatch" style="background:${PIE_COLORS[index % PIE_COLORS.length]}"></i>
+            <strong>${esc(entry[0])}</strong>
+            <span class="money">${fmt(entry[1])}<span class="mini">${percent.toFixed(1)}%</span></span>
+          </div>`;
+        }).join('');
+      }
+      $('ratioDialog').showModal();
+    }
+
+    function openAccounts() {
+      resetAccount();
+      renderAccountList();
+      $('accountDialog').showModal();
+    }
+    function resetAccount() {
+      $('accountId').value = '';
+      $('bank').value = '';
+      $('accountName').value = '';
+      $('openingAmount').value = '';
+      $('accountCurrency').value = D.settings.baseCurrency;
+      $('openingDate').value = today();
+    }
+    function renderAccountList() {
+      $('accountList').innerHTML = D.accounts.length ? D.accounts.map(account => `
+        <div class="account">
+          <div><strong>${esc(account.bank)} / ${esc(account.name)}</strong><small>${account.currency} · ${fmt(account.openingAmount,account.currency)}</small></div>
+          <div><button class="edit" data-aedit="${account.id}" aria-label="${tr('edit')}">✎</button><button class="del" data-adel="${account.id}" aria-label="${tr('delete')}">×</button></div>
+        </div>`).join('') : `<div class="empty">${tr('noData')}</div>`;
+    }
+    function saveAccount() {
+      const id = Number($('accountId').value) || newId();
+      const bank = $('bank').value.trim();
+      const name = $('accountName').value.trim();
+      const amount = Number($('openingAmount').value || 0);
+      const currency = $('accountCurrency').value;
+      const date = $('openingDate').value;
+      if (!bank || !name || !date || !Number.isFinite(amount)) return toast(tr('inputError'));
+      if(D.transactions.some(tx=>tx.accountId===id && tx.currency!==currency))return toast(tr('accountCurrencyLocked'));
+      const finish = result => {
+        const account = {
+          id,bank,name,currency,baseCurrency:D.settings.baseCurrency,openingDate:date,openingAmount:amount,
+          openingRate:result.rate,openingRateDate:result.date,
+          openingBase:Math.round(amount * result.rate * 100) / 100
+        };
+        D.accounts = D.accounts.some(item => item.id === id) ? D.accounts.map(item => item.id === id ? account : item) : [...D.accounts,account];
+        resetAccount();
+        renderAccountList();
+        sync();
+      };
+      if (currency === D.settings.baseCurrency) finish({rate:1,date,source:'Base currency'});
+      else server('fetchHistoricalRate',[date,currency,D.settings.baseCurrency],finish);
+    }
+
+    function renderLauncher() {
+      const ready = Boolean(L?.ready);
+      $('launcherStatus').textContent = ready ? tr('launcherReady') : tr('launcherUnavailable');
+      $('launcherLink').style.display = ready && L.driveFileUrl ? 'inline' : 'none';
+      if (ready && L.driveFileUrl) $('launcherLink').href = L.driveFileUrl;
+    }
+    function recreateLauncher() {
+      server('createDriveLauncher',[],result => {
+        L = result;
+        renderLauncher();
+        toast(tr('launcherCreated'));
+      });
+    }
+
+    function openSettings() {
+      const settings = D.settings;
+      $('setTitle').value = settings.title;
+      $('setSubtitle').value = settings.subtitle;
+      $('setLanguage').value = settings.language;
+      $('setColor').value = settings.iconColor;
+      $('setTheme').value = settings.theme;
+      renderLauncher();
+      $('settingsDialog').showModal();
+    }
+    function saveSettings() {
+      D.settings = {
+        ...D.settings,
+        title:$('setTitle').value.trim() || 'Cashflow Manager',
+        subtitle:$('setSubtitle').value.trim(),
+        language:$('setLanguage').value,
+        iconColor:$('setColor').value,
+        theme:$('setTheme').value
+      };
+      sync(tr('saved'));
+    }
+    function changeBaseCurrency() {
+      const next = $('mainBase').value;
+      const previous = D.settings.baseCurrency;
+      if (next === previous) return;
+      if (!confirm(tr('confirmBase'))) {
+        $('mainBase').value = previous;
+        return;
+      }
+      server('rebaseAppData',[D,next],result => {
+        D = result;
+        render();
+        toast(tr('saved'));
+      },error => {
+        $('mainBase').value = previous;
+        fail(error);
+      });
+    }
+
+    document.addEventListener('click',event => {
+      const close = event.target.closest('[data-close]');
+      if (close) $(close.dataset.close).close();
+    });
+    $('addIncome').onclick = () => openTx('income');
+    $('addExpense').onclick = () => openTx('expense');
+    $('accountsBtn').onclick = openAccounts;
+    $('settingsBtn').onclick = openSettings;
+    $('settingsSave').onclick = saveSettings;
+    $('launcherBtn').onclick = recreateLauncher;
+    $('mainBase').onchange = changeBaseCurrency;
+    $('txSave').onclick = saveTx;
+    $('rateBtn').onclick = fetchRate;
+    $('incomeCard').onclick = () => breakdown('income');
+    $('expenseCard').onclick = () => breakdown('expense');
+    $('year').onchange = render;
+    $('month').onchange = render;
+    $('period').onclick = event => {
+      const button = event.target.closest('[data-p]');
+      if (button) { P = Number(button.dataset.p); render(); }
+    };
+    $('filters').onclick = event => {
+      const button = event.target.closest('[data-f]');
+      if (button) {
+        F = button.dataset.f;
+        document.querySelectorAll('.tab').forEach(item => item.classList.toggle('on',item === button));
+        render();
+      }
+    };
+    $('cashflowChart').onclick = event => {
+      const bar = event.target.closest('[data-ratio]');
+      if (bar) breakdown(bar.dataset.ratio,bar.dataset.month);
+    };
+    $('kindSeg').onclick = event => {
+      const button = event.target.closest('[data-k]');
+      if (button) { K = button.dataset.k; updateTx(); }
+    };
+    $('costSeg').onclick = event => {
+      const button = event.target.closest('[data-c]');
+      if (button) { C = button.dataset.c; updateTx(); }
+    };
+    $('txAmount').oninput = updateTx;
+    $('txRate').oninput = () => { rateRequest++;rateMeta={date:$('txDate').value,source:'Manual'};updateTx(); };
+    $('txCurrency').onchange = fetchRate;
+    $('txDate').onchange = fetchRate;
+    $('txAccount').onchange = () => {
+      const account = D.accounts.find(item => item.id === Number($('txAccount').value));
+      if (account) { $('txCurrency').value = account.currency; fetchRate(); }
+      else updateTx();
+    };
+    $('ledger').onclick = event => {
+      const edit = event.target.closest('[data-edit]');
+      const remove = event.target.closest('[data-del]');
+      if (edit) openTx('expense',Number(edit.dataset.edit));
+      if (remove && confirm(tr('confirmDelete'))) {
+        D.transactions = D.transactions.filter(item => item.id !== Number(remove.dataset.del));
+        sync();
+      }
+    };
+    $('accountSave').onclick = saveAccount;
+    $('accountList').onclick = event => {
+      const edit = event.target.closest('[data-aedit]');
+      const remove = event.target.closest('[data-adel]');
+      if (edit) {
+        const account = D.accounts.find(item => item.id === Number(edit.dataset.aedit));
+        $('accountId').value = account.id;
+        $('bank').value = account.bank;
+        $('accountName').value = account.name;
+        $('accountCurrency').value = account.currency;
+        $('openingDate').value = account.openingDate;
+        $('openingAmount').value = account.openingAmount;
+      }
+      if (remove && confirm(tr('confirmDelete'))) {
+        const id = Number(remove.dataset.adel);
+        D.accounts = D.accounts.filter(item => item.id !== id);
+        D.transactions.forEach(tx => { if (tx.accountId === id) tx.accountId = null; });
+        renderAccountList();
+        sync();
+      }
+    };
+    $('clearBtn').onclick = () => {
+      if (confirm(tr('confirmClear'))) {
+        server('clearAllData',['CLEAR'],result => {
+          D = result;
+          render();
+          toast(tr('cleared'));
+        });
+      }
+    };
+
+
+  
+'use strict';
+const extraLabels={
+ ja:{connect:'Googleに接続／再接続',cloudSync:'クラウド同期',retrySave:'保存を再試行',logout:'ログアウト',backup:'JSONバックアップ',budget:'月次支出予算',budgetDetails:'予算・内訳差額',scan:'レシート・請求書を撮影',scanReview:'読み取り結果を確認',ocrHint:'読み取りには誤りがあります。日付・通貨・合計を確認してから支出を登録してください。画像は専用台帳と同じGoogleアカウントに保存します。',useScan:'画像を保存して支出入力へ',difference:'予算残額',actual:'実支出',connected:'接続済み',offline:'未接続',save:'保存',done:'完了',cancel:'キャンセル'},
+ en:{connect:'Connect / reconnect Google',cloudSync:'Cloud sync',retrySave:'Retry save',logout:'Sign out',backup:'JSON backup',budget:'Monthly expense budget',budgetDetails:'Budget details',scan:'Scan receipt / invoice',scanReview:'Review scanned text',ocrHint:'OCR can be wrong. Check date, currency and total before saving the expense. The image is saved to the same Google account as your ledger.',useScan:'Save image and enter expense',difference:'Budget remaining',actual:'Actual expense',connected:'Connected',offline:'Not connected',save:'Save',done:'Done',cancel:'Cancel'},
+ th:{connect:'เชื่อมต่อ Google อีกครั้ง',cloudSync:'ซิงค์ข้อมูล',retrySave:'ลองบันทึกอีกครั้ง',logout:'ออกจากระบบ',backup:'สำรองข้อมูล JSON',budget:'งบรายจ่ายรายเดือน',budgetDetails:'รายละเอียดงบประมาณ',scan:'สแกนใบเสร็จ / ใบแจ้งหนี้',scanReview:'ตรวจสอบข้อความ',ocrHint:'OCR อาจผิดพลาด โปรดตรวจสอบวันที่ สกุลเงิน และยอดรวมก่อนบันทึก รูปภาพจะบันทึกในบัญชี Google เดียวกับสมุดบัญชี',useScan:'บันทึกรูปและกรอกรายจ่าย',difference:'งบคงเหลือ',actual:'รายจ่ายจริง',connected:'เชื่อมต่อแล้ว',offline:'ยังไม่เชื่อมต่อ',save:'บันทึก',done:'เสร็จสิ้น',cancel:'ยกเลิก'}
+};
+Object.assign(extraLabels.ja,{clearWarning:'必要なら先にJSONバックアップを保存してください。変更履歴と画像はDriveに残ります。',driveLauncher:'Google Driveの台帳',openLauncher:'台帳を開く（Launchタブからアプリへ）',recreateLauncher:'リンクを更新',launcherCreated:'リンクを更新しました',confirmClear:'現在の収支・口座・予算・設定をクリアしますか？変更履歴と画像はDriveに残ります。完全削除はDriveから行ってください。'});
+Object.assign(extraLabels.en,{clearWarning:'Export a JSON backup first if needed. History and images remain in Drive.',driveLauncher:'Google Drive ledger',openLauncher:'Open ledger (Launch tab opens app)',recreateLauncher:'Refresh link',launcherCreated:'Link refreshed',confirmClear:'Reset current transactions, accounts, budgets and settings? History and images remain in Drive. Delete them from Drive for permanent removal.'});
+Object.assign(extraLabels.th,{clearWarning:'สำรองข้อมูล JSON ก่อนหากจำเป็น ประวัติและรูปภาพยังอยู่ใน Drive',driveLauncher:'สมุดบัญชี Google Drive',openLauncher:'เปิดสมุดบัญชี (แท็บ Launch)',recreateLauncher:'อัปเดตลิงก์',launcherCreated:'อัปเดตลิงก์แล้ว',confirmClear:'ล้างรายการ บัญชี งบประมาณ และการตั้งค่าปัจจุบันหรือไม่? ประวัติและรูปภาพยังอยู่ใน Drive หากต้องการลบถาวรให้ลบใน Drive'});
+for(const lang of Object.keys(extraLabels))Object.assign(I[lang],extraLabels[lang]);
+const authLabels={
+ ja:{connect:'Googleでログイン／再試行',authIntro:'Googleアカウントで始める',rememberHint:'この端末で30日間ログインを維持します。共有端末では使用後にログアウトしてください。',accountConnection:'アカウント・データ管理',logoutAll:'全端末ログアウト',restoring:'接続を確認しています…',reconnectHint:'ログインの有効期限が切れました。もう一度接続してください。',offlineConsent:'継続利用の許可が必要です。Googleアカウントの連携を解除し、再度ログインしてください。',discardLogout:'未保存の変更を破棄してログアウトしますか？',confirmLogoutAll:'このアプリに接続した全端末をログアウトしますか？',storageUnavailable:'端末の保存機能が使えないため、次回はログインが必要です。'},
+ en:{connect:'Sign in with Google / retry',authIntro:'Continue with your Google account',rememberHint:'Stay signed in for 30 days on this device. Sign out after using a shared device.',accountConnection:'Account and data',logoutAll:'Sign out all devices',restoring:'Restoring connection…',reconnectHint:'Your session expired. Please sign in again.',offlineConsent:'Offline consent is required. Remove this app from your Google connections and sign in again.',discardLogout:'Discard unsaved changes and sign out?',confirmLogoutAll:'Sign out all devices connected to this app?',storageUnavailable:'Browser storage is unavailable. Sign-in will be required next time.'},
+ th:{connect:'เข้าสู่ระบบ Google / ลองอีกครั้ง',authIntro:'เริ่มต้นด้วยบัญชี Google',rememberHint:'คงการเข้าสู่ระบบ 30 วันบนอุปกรณ์นี้ โปรดออกจากระบบเมื่อใช้เครื่องร่วมกัน',accountConnection:'บัญชีและข้อมูล',logoutAll:'ออกจากระบบทุกอุปกรณ์',restoring:'กำลังกู้คืนการเชื่อมต่อ…',reconnectHint:'เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง',offlineConsent:'ต้องอนุญาตการใช้งานต่อเนื่อง ยกเลิกการเชื่อมต่อแอปในบัญชี Google แล้วเข้าสู่ระบบใหม่',discardLogout:'ละทิ้งการเปลี่ยนแปลงที่ยังไม่บันทึกและออกจากระบบหรือไม่?',confirmLogoutAll:'ออกจากระบบทุกอุปกรณ์ที่เชื่อมต่อแอปนี้หรือไม่?',storageUnavailable:'ไม่สามารถบันทึกในเบราว์เซอร์ได้ ครั้งหน้าต้องเข้าสู่ระบบใหม่'}
+};
+Object.assign(I.ja,{accountCurrencyLocked:'取引がある口座の通貨は変更できません。別通貨は新しい口座を作成してください。'});Object.assign(I.en,{accountCurrencyLocked:'Create another account for a different currency when this account has transactions.'});Object.assign(I.th,{accountCurrencyLocked:'บัญชีมีรายการแล้ว โปรดสร้างบัญชีใหม่สำหรับสกุลเงินอื่น'});
+for(const lang of Object.keys(authLabels))Object.assign(I[lang],authLabels[lang]);
+let pendingReceipt=null,scanBlob=null,connecting=false;
+function newId(){return Date.now()*1000+crypto.getRandomValues(new Uint16Array(1))[0]%1000;}
+function renderBudget(){
+ const rows=(D.budgets||[]).filter(b=>b.month===selected());const total=rows.reduce((n,b)=>n+Number(b.amount),0),expense=monthSummary(selected()).expense,diff=total-expense;
+ $('budgetSummary').textContent=`${compactMonth(selected())} · ${fmt(total)} / ${tr('actual')}: ${fmt(expense)} / ${tr('difference')}: ${fmt(diff)} (${total?(diff/total*100).toFixed(1)+'%':'—'})`;
+ const used=Object.create(null);for(const t of D.transactions)if(t.kind==='expense'&&t.date.slice(0,7)===selected())used[t.detail]=(used[t.detail]||0)+t.baseAmount;
+ const names=[...new Set([...rows.map(b=>b.detail),...Object.keys(used)])];
+ $('budgetRows').innerHTML=names.map(name=>{const b=rows.find(b=>b.detail===name),a=b?.amount||0,e=used[name]||0;return `<div class="account"><div><strong>${esc(name)}</strong><small>${fmt(a)} / ${tr('actual')}: ${fmt(e)}<br>${tr('difference')}: ${fmt(a-e)} (${a?((a-e)/a*100).toFixed(1)+'%':'—'})</small></div><div><button class="btn" data-budget-edit="${esc(name)}">✎</button>${b?`<button class="btn" data-budget-delete="${esc(b.id)}">×</button>`:''}</div></div>`;}).join('')||tr('noData');
+ $('budgetNames').innerHTML=[...new Set(D.details.filter(d=>d.kind==='expense').map(d=>d.label))].map(n=>`<option value="${esc(n)}">`).join('');
+}
+$('budgetOpen').onclick=()=>{renderBudget();$('budgetDialog').showModal();};
+$('budgetSave').onclick=()=>{const detail=$('budgetDetail').value.trim(),amount=Number($('budgetAmount').value);if(!detail||!Number.isFinite(amount)||amount<0)return toast(tr('inputError'));const id=JSON.stringify([selected(),detail]);const b={id,month:selected(),detail,amount,currency:D.settings.baseCurrency};D.budgets=(D.budgets||[]).filter(x=>x.id!==id);D.budgets.push(b);sync();};
+$('budgetRows').onclick=e=>{const edit=e.target.closest('[data-budget-edit]'),del=e.target.closest('[data-budget-delete]');if(edit){$('budgetDetail').value=edit.dataset.budgetEdit;$('budgetAmount').value=D.budgets.find(b=>b.month===selected()&&b.detail===edit.dataset.budgetEdit)?.amount||0;}if(del&&confirm(tr('confirmDelete'))){D.budgets=D.budgets.filter(b=>b.id!==del.dataset.budgetDelete);sync();}};
+function lock(value){document.querySelector('main').inert=value;$('settingsBtn').disabled=value;for(const id of ['pull','retry','scan','mainBase'])$(id).disabled=value;}
+async function enter() {
+ busy(true);$('connect').disabled=true;$('authMessage').textContent=tr('restoring');
+ try{
+  const r=await Auth.token();
+  if(U?.sub&&U.sub!==r.user.sub)throw Error('別のアカウントです。ログアウトしてから接続してください。');
+  const previous=D,data=await Cloud.connect(r,dirty);D=dirty?previous:data;
+  U={sub:r.user.sub,displayName:r.user.name,email:r.user.email};L={ready:true,driveFileUrl:Cloud.url};
+  lock(dirty);$('retry').disabled=false;document.querySelector('main').hidden=false;$('authGate').hidden=true;$('syncBar').hidden=false;
+  render();$('accountIdentity').textContent=U.email;$('cloudStatus').textContent=tr('connected');$('retry').hidden=!dirty;
+ }catch(e){$('authGate').hidden=false;$('authMessage').textContent=authError(e);fail(e);}finally{busy(false);$('connect').disabled=false;}
+}
+function authError(e){
+ if(e.message==='REAUTH_REQUIRED')return tr('reconnectHint');
+ if(e.message==='OFFLINE_CONSENT_REQUIRED')return tr('offlineConsent');
+ return e.message;
+}
+$('connect').onclick=()=>{
+ try{validateConfig();}catch(e){$('authMessage').textContent=e.message;return;}
+ if(Auth.saved)return enter();
+ if(connecting)return;
+ if(!window.google?.accounts?.oauth2)return toast('Google Identity Servicesを読み込めません。ネット接続を確認してください。');
+ if(!CFG.clientId||CFG.clientId.startsWith('YOUR_'))return toast('config.js に OAuth クライアントIDを設定してください。');
+ connecting=true;$('connect').disabled=true;
+ try{google.accounts.oauth2.initCodeClient({client_id:CFG.clientId,scope:Cloud.scope+' openid email profile',ux_mode:'popup',select_account:true,
+ error_callback:e=>{connecting=false;$('connect').disabled=false;$('authMessage').textContent=e.type;},
+ callback:async r=>{
+  connecting=false;$('connect').disabled=false;if(r.error){$('authMessage').textContent=r.error;return;}
+  busy(true);try{await Auth.login(r.code);await enter();}catch(e){$('authMessage').textContent=authError(e);fail(e);}finally{busy(false);}
+ }}).requestCode();}catch(e){connecting=false;$('connect').disabled=false;$('authMessage').textContent=authError(e);}
+};
+async function pull(){if(!Cloud.ready||dirty||document.querySelector('dialog[open]')||$('busy').style.display==='grid')return;busy(true);try{D=await Cloud.refresh();render();$('cloudStatus').textContent=tr('connected')+' '+new Date().toLocaleTimeString();}catch(e){$('cloudStatus').textContent=authError(e);}finally{busy(false);}}
+$('pull').onclick=pull;$('retry').onclick=()=>sync();
+async function leave(all){if(dirty&&!confirm(tr('discardLogout')))return;if(all&&!confirm(tr('confirmLogoutAll')))return;busy(true);try{await Auth.logout(all);dirty=false;location.reload();}catch(e){if(e.status===401){dirty=false;location.reload();return;}fail(e);}finally{busy(false);}}
+$('logout').onclick=()=>leave(false);$('logoutAll').onclick=()=>leave(true);
+window.addEventListener('auth-required',()=>{lock(true);$('authGate').hidden=false;$('authMessage').textContent=tr('reconnectHint');$('cloudStatus').textContent=tr('offline');});
+window.addEventListener('auth-storage-unavailable',()=>toast(tr('storageUnavailable')));
+$('backup').onclick=()=>{const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cashflow-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+window.addEventListener('focus',pull);setInterval(pull,60000);
+$('scan').onclick=()=>{$('scanFile').value='';$('scanFile').click();};
+async function loadOCR(){if(window.Tesseract)return;await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';s.onload=resolve;s.onerror=()=>reject(Error('OCRライブラリを取得できません'));document.head.append(s);});}
+$('scanFile').onchange=async e=>{
+ const file=e.target.files[0];if(!file)return;if(file.size>15*1024*1024)return fail('画像は15MB以下にしてください。');scanBlob=file;$('ocrText').value='';$('ocrUse').disabled=true;$('ocrDialog').showModal();let worker;
+ try{await loadOCR();worker=await Tesseract.createWorker(({ja:'jpn+eng',en:'eng',th:'tha+eng'})[language()],1,{logger:m=>{$('ocrProgress').textContent=`${m.status} ${Math.round((m.progress||0)*100)}%`;}});const r=await worker.recognize(file);$('ocrText').value=r.data.text;$('ocrProgress').textContent='✓';$('ocrUse').disabled=false;}catch(e){fail(e);$('ocrProgress').textContent=e.message;}finally{if(worker)await worker.terminate();}
+};
+$('ocrUse').onclick=async()=>{
+ if($('ocrUse').disabled)return;$('ocrUse').disabled=true;busy(true);try{const receiptId=await Cloud.upload(scanBlob);const text=$('ocrText').value;$('ocrDialog').close();openTx('expense');pendingReceipt=receiptId;$('txMemo').value=text.slice(0,6000);const date=text.match(/(20\d{2})[\/年.\-](\d{1,2})[\/月.\-](\d{1,2})/);if(date)$('txDate').value=`${date[1]}-${date[2].padStart(2,'0')}-${date[3].padStart(2,'0')}`;
+ const totalLine=text.split('\n').filter(l=>/合計|総額|grand total|amount due|ยอดรวม|total/i.test(l)&&!/subtotal|小計/i.test(l)).pop();if(totalLine){const n=totalLine.match(/\d[\d,]*(?:\.\d{1,2})?/g);if(n)$('txAmount').value=n.at(-1).replaceAll(',','');}
+ const cur=/฿|THB/.test(text)?'THB':/Rp\b|IDR/.test(text)?'IDR':/USD|\$/.test(text)?'USD':/JPY|円|¥|￥/.test(text)?'JPY':D.settings.baseCurrency;$('txCurrency').value=cur;fetchRate();}catch(e){fail(e);}finally{busy(false);$('ocrUse').disabled=false;}
+};
+init();lock(true);$('cloudStatus').textContent=tr('offline');try{validateConfig();if(Auth.saved)enter();}catch(e){$('authMessage').textContent=e.message;}
+
+} catch(error) {
+ const gate=document.getElementById('authGate');if(gate)gate.hidden=false;
+ const message=document.getElementById('authMessage');if(message)message.textContent='起動できません: '+error.message;
+ const main=document.querySelector('main');if(main)main.hidden=true;
+ const overlay=document.getElementById('busy');if(overlay)overlay.style.display='none';
+ console.error('Cashflow startup:',error);
+}
+})();
+</script>
+</body>
+</html>
